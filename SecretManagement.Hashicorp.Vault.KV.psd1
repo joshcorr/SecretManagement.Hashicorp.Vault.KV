@@ -6,7 +6,7 @@
     Copyright            = '(c) 2020 Joshua Corrick. All rights reserved.'
     Description          = 'A PowerShell SecretManagement extension for Hashicorp Vault Key Value Engine'
     RootModule           = 'SecretManagement.Hashicorp.Vault.KV.psm1'
-    RequiredModules      = @('Microsoft.PowerShell.SecretManagement')
+    #RequiredModules      = @('Microsoft.PowerShell.SecretManagement')
     NestedModules        = './SecretManagement.Hashicorp.Vault.KV.Extension'
     PowershellVersion    = '5.1'
     FunctionsToExport    = @()
