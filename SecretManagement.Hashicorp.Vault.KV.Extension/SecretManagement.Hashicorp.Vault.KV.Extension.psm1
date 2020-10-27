@@ -212,27 +212,29 @@ function Get-Secret {
         [Parameter(ValueFromPipelineByPropertyName)]
         [hashtable] $AdditionalParameters
     )
-    $null = Test-SecretVault -VaultName $VaultName -AdditionalParameters $AdditionalParameters
-    if ($Name -match '/') {
-        $SecretName = $($Name -split '/')[-1]
-    } else {
-        $SecretName = $Name
-    }
-    $SecretData = Invoke-VaultAPIQuery -VaultName $VaultName -SecretName $Name
-    switch ([HashicorpVaultKV]::KVVersion) {
-        'v1' {
-            $Secret = $SecretData.data
-            $SecretObject = [PSCredential]::new($Name, ($Secret.$SecretName | ConvertTo-SecureString -AsPlainText -Force))
-            continue
+    process {
+        $null = Test-SecretVault -VaultName $VaultName -AdditionalParameters $AdditionalParameters
+        if ($Name -match '/') {
+            $SecretName = $($Name -split '/')[-1]
+        } else {
+            $SecretName = $Name
         }
-        'v2' {
-            $Secret = $SecretData.data.data
-            $SecretObject = [PSCredential]::new($Name, ($Secret.$SecretName | ConvertTo-SecureString -AsPlainText -Force))
-            continue
+        $SecretData = Invoke-VaultAPIQuery -VaultName $VaultName -SecretName $Name
+        switch ([HashicorpVaultKV]::KVVersion) {
+            'v1' {
+                $Secret = $SecretData.data
+                $SecretObject = [PSCredential]::new($Name, ($Secret.$SecretName | ConvertTo-SecureString -AsPlainText -Force))
+                continue
+            }
+            'v2' {
+                $Secret = $SecretData.data.data
+                $SecretObject = [PSCredential]::new($Name, ($Secret.$SecretName | ConvertTo-SecureString -AsPlainText -Force))
+                continue
+            }
+            default { throw "Unknown KeyVaule version" }
         }
-        default { throw "Unknown KeyVaule version" }
+        return $SecretObject
     }
-    return $SecretObject
 }
 function Get-SecretInfo {
     [CmdletBinding()]
@@ -244,18 +246,19 @@ function Get-SecretInfo {
         [Parameter(ValueFromPipelineByPropertyName)]
         [hashtable] $AdditionalParameters
     )
-    $null = Test-SecretVault -VaultName $VaultName -AdditionalParameters $AdditionalParameters
+    process {
+        $null = Test-SecretVault -VaultName $VaultName -AdditionalParameters $AdditionalParameters
 
-    $Filter = "*$Filter"
-    $VaultSecrets = Resolve-VaultSecretPath -VaultName $VaultName
-    $keys = New-Object -TypeName 'System.Collections.Generic.List[string]'
-    $VaultSecrets |
-    Where-Object { $PSItem -like $Filter } |
-    ForEach-Object {
-        [Microsoft.PowerShell.SecretManagement.SecretInformation]::new(
-            "$PSItem",
-            "String",
-            $VaultName)
+        $Filter = "*$Filter"
+        $VaultSecrets = Resolve-VaultSecretPath -VaultName $VaultName
+        $VaultSecrets |
+        Where-Object { $PSItem -like $Filter } |
+        ForEach-Object {
+            [Microsoft.PowerShell.SecretManagement.SecretInformation]::new(
+                "$PSItem",
+                "String",
+                $VaultName)
+        }
     }
 }
 function Set-Secret {
@@ -270,30 +273,32 @@ function Set-Secret {
         [Parameter(ValueFromPipelineByPropertyName)]
         [hashtable] $AdditionalParameters
     )
-    $null = Test-SecretVault -VaultName $VaultName -AdditionalParameters $AdditionalParameters
+    process {
+        $null = Test-SecretVault -VaultName $VaultName -AdditionalParameters $AdditionalParameters
 
-    switch ($Secret.GetType()) {
-        'String' {
-            $SecretValue = $Secret
+        switch ($Secret.GetType()) {
+            'String' {
+                $SecretValue = $Secret
+            }
+            'SecureString' {
+                $SecretValue = $Secret | ConvertFrom-SecureString -AsPlainText
+            }
+            'PSCredential' {
+                $SecretValue = $Secret.Password | ConvertFrom-SecureString -AsPlainText
+            }
+            default {
+                throw "Unsupported secret type: $($Secret.GetType().Name)"
+            }
         }
-        'SecureString' {
-            $SecretValue = $Secret | ConvertFrom-SecureString -AsPlainText
+
+        $SecretData = Invoke-VaultAPIQuery -VaultName $VaultName -SecretName $Name -SecretValue $SecretValue
+
+        #$? represents the success/fail of the last execution
+        if (-not $?) {
+            throw $SecretData
         }
-        'PSCredential' {
-            $SecretValue = $Secret.Password | ConvertFrom-SecureString -AsPlainText
-        }
-        default {
-            throw "Unsupported secret type: $($Secret.GetType().Name)"
-        }
+        return $?
     }
-
-    $SecretData = Invoke-VaultAPIQuery -VaultName $VaultName -SecretName $Name -SecretValue $SecretValue
-
-    #$? represents the success/fail of the last execution
-    if (-not $?) {
-        throw $SecretData
-    }
-    return $?
 }
 function Remove-Secret {
     [CmdletBinding()]
@@ -305,14 +310,16 @@ function Remove-Secret {
         [Parameter(ValueFromPipelineByPropertyName)]
         [hashtable] $AdditionalParameters
     )
-    $null = Test-SecretVault -VaultName $VaultName -AdditionalParameters $AdditionalParameters
-    $SecretData = Invoke-VaultAPIQuery -VaultName $VaultName -SecretName $Name
+    process {
+        $null = Test-SecretVault -VaultName $VaultName -AdditionalParameters $AdditionalParameters
+        $SecretData = Invoke-VaultAPIQuery -VaultName $VaultName -SecretName $Name
 
-    #$? represents the success/fail of the last execution
-    if (-not $?) {
-        throw $SecretData
+        #$? represents the success/fail of the last execution
+        if (-not $?) {
+            throw $SecretData
+        }
+        return $?
     }
-    return $?
 }
 function Test-SecretVault {
     [CmdletBinding()]
@@ -322,32 +329,34 @@ function Test-SecretVault {
         [Parameter(ValueFromPipelineByPropertyName)]
         [hashtable] $AdditionalParameters
     )
-    $ErrorActionPreference = 'STOP'
-    Test-VaultVariable -Arguments $AdditionalParameters
+    process {
+        $ErrorActionPreference = 'STOP'
+        Test-VaultVariable -Arguments $AdditionalParameters
 
-    if ($null -eq [HashicorpVaultKV]::VaultServer) {
-        [HashicorpVaultKV]::VaultServer = Read-Host -Prompt "Please provide the URL for the HashiCorp Vault (Example: https://myvault.domain.local)"
+        if ($null -eq [HashicorpVaultKV]::VaultServer) {
+            [HashicorpVaultKV]::VaultServer = Read-Host -Prompt "Please provide the URL for the HashiCorp Vault (Example: https://myvault.domain.local)"
+        }
+
+        if ($null -eq [HashicorpVaultKV]::VaultToken) {
+            [HashicorpVaultKV]::VaultToken = (Read-Host -Prompt "Provide Vault Token" -AsSecureString | ConvertFrom-SecureString -AsPlainText )
+        }
+
+        try {
+            $VaultHealth = (Invoke-VaultAPIQuery -VaultName $VaultName)
+        } catch {
+            throw "Something occured while communicating with $([HashicorpVaultKV]::VaultServer). Doublecheck the URL"
+        }
+
+        if ($VaultHealth[0].sealed -eq 'True') {
+            Throw "The Hashicorp Vault at $([HashicorpVaultKV]::VaultServer) is sealed"
+        }
+
+        #This should return $null if the vault doesn't exist
+        $SelectedVault = $VaultHealth[1].$("$VaultName/")
+        if ($null -eq $SelectedVault) {
+            Throw "$VaultName does not exist at $([HashicorpVaultKV]::VaultServer)"
+        }
+
+        return $?
     }
-
-    if ($null -eq [HashicorpVaultKV]::VaultToken) {
-        [HashicorpVaultKV]::VaultToken = (Read-Host -Prompt "Provide Vault Token" -AsSecureString | ConvertFrom-SecureString -AsPlainText )
-    }
-
-    try {
-        $VaultHealth = (Invoke-VaultAPIQuery -VaultName $VaultName)
-    } catch {
-        throw "Something occured while communicating with $([HashicorpVaultKV]::VaultServer). Doublecheck the URL"
-    }
-
-    if ($VaultHealth[0].sealed -eq 'True') {
-        Throw "The Hashicorp Vault at $([HashicorpVaultKV]::VaultServer) is sealed"
-    }
-
-    #This should return $null if the vault doesn't exist
-    $SelectedVault = $VaultHealth[1].$("$VaultName/")
-    if ($null -eq $SelectedVault) {
-        Throw "$VaultName does not exist at $([HashicorpVaultKV]::VaultServer)"
-    }
-
-    return $?
 }
