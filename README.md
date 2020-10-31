@@ -18,14 +18,14 @@ $VaultParameters = @{ VaultServer = 'https://vault-cluster.domain.local'
 ```
 
 ## KV Version 2 distinctions
- - Get-Secret only retrieves the newest secret
- - Set-Secret Adds/Updates without CheckAndSet.
- - Remove-Secret Completely Removes the secret and all versions
+- Get-Secret only retrieves the newest secret
+- Set-Secret Adds/Updates without CheckAndSet.
+- Remove-Secret Completely Removes the secret and all versions
 
 ## TO DO
- - Create a vault if it doesn't exist
- - Allow token updating
- - Allow options for KV2 version retrieval
+- Create a vault if it doesn't exist
+- Allow token updating
+- Allow options for KV2 version retrieval
 
 
 [GitHubSuper-Linter]: https://github.com/joshcorr/SecretManagement.Hashicorp.Vault.KV/workflows/Lint%20Code%20Base/badge.svg
