@@ -1,0 +1,39 @@
+---
+name: ci
+on:
+  push:
+    branches-ignore: [main]
+  pull_request:
+    branches: 
+    - main
+    - development
+
+jobs:
+  lint:
+    name: Lint Module
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+        with:
+          # Full git history is needed to get a proper list of changed files within `super-linter`
+          fetch-depth: 0
+
+      - name: Lint Code Base
+        uses: github/super-linter@v3
+        env:
+          VALIDATE_ALL_CODEBASE: false
+          DEFAULT_BRANCH: main
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  import:
+    name: Import Module
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macOS-latest]
+    steps:
+      - name: Perform the import
+        uses: actions/checkout@v2
+        shell: pwsh
+        run: Import-Module ./SecretManagement.Hashicorp.Vault.KV.Extension/SecretManagement.Hashicorp.Vault.KV.Extension.psd1 -ErrorAction Stop; (Get-Command -Module SecretManagement.Hashicorp.Vault.KV.Extension) -ne $null
