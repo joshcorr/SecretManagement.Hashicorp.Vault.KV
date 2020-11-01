@@ -6,7 +6,7 @@ First off, thank you for using SecretManagement.Hashicorp.Vault.KV and consideri
 
 This module is an extension for [Microsoft.PowerShell.SecretManagement](https://github.com/powershell/secretmanagement) and cannot be used exclusivly by itself.
 
-## What we are looking for...
+## What we are looking for
 
 - Improving documentation
 - Bug Triaging
