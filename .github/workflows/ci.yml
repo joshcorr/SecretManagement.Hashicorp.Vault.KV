@@ -21,6 +21,8 @@ jobs:
         uses: github/super-linter@v3
         env:
           VALIDATE_ALL_CODEBASE: true
+          VALIDATE_JSON: false
+          LINTER_RULES_PATH: .github/linters
           DEFAULT_BRANCH: main
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   import:
