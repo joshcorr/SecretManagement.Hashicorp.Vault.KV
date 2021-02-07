@@ -1,4 +1,10 @@
 # Private Helper Functions
+enum HashicorpVaultConfigValues {
+    VaultServer
+    VaultToken
+    VaultAPIVersion
+    KVVersion
+}
 class HashicorpVaultKV {
     static [string] $VaultServer
     static [string] $VaultToken
@@ -49,6 +55,10 @@ function Test-VaultVariable {
         [hashtable]$Arguments
     )
     foreach ($k in $Arguments.GetEnumerator()) {
+        if ($k.Key -notin [HashicorpVaultConfigValues].GetEnumNames()) {
+            Write-Warning -Message "$($k.Key) not in accepted config values, skipping"
+            continue
+        }
         if ($null -eq [HashicorpVaultKV]::$($k.key) -or [HashicorpVaultKV]::$($k.key) -ne $($k.key)) {
             [HashicorpVaultKV]::$($k.Key) = $k.Value
         }

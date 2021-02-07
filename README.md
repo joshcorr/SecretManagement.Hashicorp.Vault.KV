@@ -4,6 +4,10 @@
 
 A PowerShell SecretManagement extension for Hashicorp Vault Key Value (KV) Engine. This supports version 1, version2, and  cubbyhole (similar to v1). It does not currently support all of the version 2 features like versioned secrets, or metadata.
 
+> **NOTE: This project is not a maintained by Hashicorp.**  
+> **I work on this in my free time because I use Vault.**  
+> If Hashicorp would like to adopt this module please reach out.  
+
 ## QuickStart
 When registering a vault you need to provide at least these options:
 ```PowerShell
