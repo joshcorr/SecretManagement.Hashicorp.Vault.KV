@@ -14,8 +14,9 @@ jobs:
     stategy:
       fail-fast: true
     steps:
+      - name: Check out repository code
+        uses: actions/checkout@v2
       - name: Build and Publish Module
-        uses : actions/checkout@v2
         shell: pwsh
         env:
           NUGET_KEY: ${{ secrets.NUGET_APIKEY }}
@@ -23,32 +24,25 @@ jobs:
           New-Item -Name ./artifacts/SecretManagement.Hashicorp.Vault.KV -ItemType Directory -Force
           Copy-Item -path ./src/* -Destination /tmp/artifacts/SecretManagement.Hashicorp.Vault.KV/
           Publish-Module -Path /tmp/artifacts/SecretManagement.Hashicorp.Vault.KV -NuGetApiKey $env:NUGET_KEY
-  artifacts:
-    if: github.event.pull_request.merged == true
-    runs-on: ubuntu-latest
-    steps:
       - name: Create Artifact
+        if: ${{ success() }}
         uses: actions/upload-artifact@v2
         with:
           name: SecretManagement.Hashicorp.Vault.KV
           path: /tmp/artifacts/SecretManagement.Hashicorp.Vault.KV
           if-no-files-found: error
-  release:
-    if: ${{ success() }}
-    runs-on: ubuntu-latest
-    steps:
-    - name: "Get Version"
-      uses: actions/checkout@v2
-      shell: pwsh
-      run: |
-        $Version = Test-ModuleManifest -Path /tmp/artifacts/SecretManagement.Hashicorp.Vault.KV
-        echo "tag=$Version.Version.ToString()" >> $GITHUB_ENV
-        if ($null -eq $($test.privatedata.psdata.prerelease)) {echo "prerelase=false" >> $GITHUB_ENV} else {echo "prerelase=true" >> $GITHUB_ENV}
-    - name: "Release"
-      uses: ncipollo/release-action@v1
-      with:
-        artifacts: "SecretManagement.Hashicorp.Vault.KV"
-        tag: ${{ env.tag }}
-        prerelease: ${{ env.prerelease }}
-        bodyFile: "body.md"
-        token: ${{ secrets.GITHUB_TOKEN }}
+      - name: "Get Version"
+        if: ${{ success() }}
+        shell: pwsh
+        run: |
+          $Version = Test-ModuleManifest -Path /tmp/artifacts/SecretManagement.Hashicorp.Vault.KV
+          echo "tag=$Version.Version.ToString()" >> $GITHUB_ENV
+          if ($null -eq $($test.privatedata.psdata.prerelease)) {echo "prerelase=false" >> $GITHUB_ENV} else {echo "prerelase=true" >> $GITHUB_ENV}
+      - name: "Release"
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: "SecretManagement.Hashicorp.Vault.KV"
+          tag: ${{ env.tag }}
+          prerelease: ${{ env.prerelease }}
+          bodyFile: "body.md"
+          token: ${{ secrets.GITHUB_TOKEN }}
