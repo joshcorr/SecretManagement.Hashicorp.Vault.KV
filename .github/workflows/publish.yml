@@ -15,16 +15,13 @@ jobs:
       fail-fast: true
     steps:
       - uses : actions/checkout@v2
-      - name: Build Module
-        shell: pwsh
-        run: |
-          New-Item -Name ./artifacts/SecretManagement.Hashicorp.Vault.KV -ItemType Directory -Force
-          Copy-Item -path ./src/* -Destination /tmp/artifacts/SecretManagement.Hashicorp.Vault.KV/
-      - name: Publish the module
+      - name: Build and Publish Module
         shell: pwsh
         env:
           NUGET_KEY: ${{ secrets.NUGET_APIKEY }}
         run: |
+          New-Item -Name ./artifacts/SecretManagement.Hashicorp.Vault.KV -ItemType Directory -Force
+          Copy-Item -path ./src/* -Destination /tmp/artifacts/SecretManagement.Hashicorp.Vault.KV/
           Publish-Module -Path /tmp/artifacts/SecretManagement.Hashicorp.Vault.KV -NuGetApiKey $env:NUGET_KEY
   artifacts:
     if: github.event.pull_request.merged == true
