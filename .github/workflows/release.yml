@@ -29,14 +29,10 @@ jobs:
         run: |
           Set-PSRepository PSGallery -InstallationPolicy Trusted
           Install-Module -Name Microsoft.PowerShell.SecretManagement -ErrorAction Stop
-      - name: Build and Publish Module
+      - name: Build Module
         shell: pwsh
-        env:
-          NUGET_KEY: ${{ secrets.NUGET_APIKEY }}
         run: |
-          New-Item -Name /tmp/artifacts/SecretManagement.Hashicorp.Vault.KV -ItemType Directory -Force
           Copy-Item -path src/* -Destination /tmp/artifacts/SecretManagement.Hashicorp.Vault.KV/ -Recurse -Force
-          Publish-Module -Path /tmp/artifacts/SecretManagement.Hashicorp.Vault.KV -NuGetApiKey $env:NUGET_KEY
       - name: Create Artifact
         if: ${{ success() }}
         uses: actions/upload-artifact@v2
@@ -46,18 +42,26 @@ jobs:
             /tmp/artifacts/SecretManagement.Hashicorp.Vault.KV/
             /tmp/artifacts/SecretManagement.Hashicorp.Vault.KV/SecretManagement.Hashicorp.Vault.KV.Extension/
           if-no-files-found: error
-      - name: "Get Version"
+      - name: Get Version
         if: ${{ success() }}
         shell: pwsh
         run: |
           $Version = Test-ModuleManifest -Path /tmp/artifacts/SecretManagement.Hashicorp.Vault.KV/SecretManagement.Hashicorp.Vault.KV.psd1
           echo "tag=$Version.Version.ToString()" >> $GITHUB_ENV
           if ($null -eq $($test.privatedata.psdata.prerelease)) {echo "prerelase=false" >> $GITHUB_ENV} else {echo "prerelase=true" >> $GITHUB_ENV}
-      - name: "Release"
-        uses: ncipollo/release-action@v1
-        with:
-          artifacts: "SecretManagement.Hashicorp.Vault.KV"
-          tag: ${{ env.tag }}
-          prerelease: ${{ env.prerelease }}
-          bodyFile: "body.md"
-          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish Module
+        shell: pwsh
+        env:
+          NUGET_KEY: ${{ secrets.NUGET_APIKEY }}
+        run: |
+          Publish-Module -Path /tmp/artifacts/SecretManagement.Hashicorp.Vault.KV -NuGetApiKey $env:NUGET_KEY
+
+      # Need to figure out tagging in pipeline first
+      # - name: "Release"
+      #   uses: ncipollo/release-action@v1
+      #   with:
+      #     artifacts: "SecretManagement.Hashicorp.Vault.KV"
+      #     tag: ${{ env.tag }}
+      #     prerelease: ${{ env.prerelease }}
+      #     bodyFile: "body.md"
+      #     token: ${{ secrets.GITHUB_TOKEN }}
