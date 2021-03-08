@@ -14,8 +14,8 @@ jobs:
     stategy:
       fail-fast: true
     steps:
-      - uses : actions/checkout@v2
       - name: Build and Publish Module
+        uses : actions/checkout@v2
         shell: pwsh
         env:
           NUGET_KEY: ${{ secrets.NUGET_APIKEY }}
@@ -27,17 +27,17 @@ jobs:
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/upload-artifact@v2
-      with:
-        name: SecretManagement.Hashicorp.Vault.KV
-        path: /tmp/artifacts/SecretManagement.Hashicorp.Vault.KV
-        if-no-files-found: error
+      - name: Create Artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: SecretManagement.Hashicorp.Vault.KV
+          path: /tmp/artifacts/SecretManagement.Hashicorp.Vault.KV
+          if-no-files-found: error
   release:
     if: success()
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
-    - uses: ncipollo/release-action@v1
     - name: "Get Version"
       shell: pwsh
       run: |
@@ -45,6 +45,7 @@ jobs:
         echo "tag=$Version.Version.ToString()" >> $GITHUB_ENV
         if ($null -eq $($test.privatedata.psdata.prerelease)) {echo "prerelase=false" >> $GITHUB_ENV} else {echo "prerelase=true" >> $GITHUB_ENV}
     - name: "Release"
+      uses: ncipollo/release-action@v1
       with:
         artifacts: "SecretManagement.Hashicorp.Vault.KV"
         tag: ${{ env.tag }}
