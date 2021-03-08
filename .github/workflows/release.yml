@@ -11,7 +11,7 @@ on:
 
 jobs:
   publish:
-    if: ${{ github.event.pull_request.merged == true || github.actor == joshcorr }}
+    if: ${{ github.event.pull_request.merged == true || github.actor == 'joshcorr' }}
     name: Publish Module
     runs-on: ubuntu-latest
     steps:
