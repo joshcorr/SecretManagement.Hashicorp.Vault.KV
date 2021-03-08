@@ -1,8 +1,8 @@
 ---
-name: ci
+name: test
 on:
   pull_request:
-    branches: 
+    branches:
     - main
     - development
 

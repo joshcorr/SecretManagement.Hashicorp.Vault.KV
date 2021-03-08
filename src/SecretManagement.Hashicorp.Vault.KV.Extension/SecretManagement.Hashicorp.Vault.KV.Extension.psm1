@@ -4,12 +4,14 @@ enum HashicorpVaultConfigValues {
     VaultToken
     VaultAPIVersion
     KVVersion
+    Verbose
 }
 class HashicorpVaultKV {
     static [string] $VaultServer
     static [string] $VaultToken
     static [string] $VaultAPIVersion = 'v1'
     static [string] $KVVersion = 'v2'
+    static [bool] $Verbose
 }
 function Invoke-CustomWebRequest {
     <#

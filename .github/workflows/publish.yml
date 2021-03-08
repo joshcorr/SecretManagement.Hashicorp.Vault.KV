@@ -1,0 +1,56 @@
+---
+name: publish
+on:
+  pull_request:
+    types: [closed]
+    branches:
+    - main
+
+jobs:
+  publish:
+    if: github.event.pull_request.merged == true
+    name: Publish Module
+    runs-on: ubuntu-latest
+    stategy:
+      fail-fast: true
+    steps:
+      - uses : actions/checkout@v2
+      - name: Build Module
+        shell: pwsh
+        run: |
+          New-Item -Name ./artifacts/SecretManagement.Hashicorp.Vault.KV -ItemType Directory -Force
+          Copy-Item -path ./src/* -Destination /tmp/artifacts/SecretManagement.Hashicorp.Vault.KV/
+      - name: Publish the module
+        shell: pwsh
+        env:
+          NUGET_KEY: ${{ secrets.NUGET_APIKEY }}
+        run: |
+          Publish-Module -Path /tmp/artifacts/SecretManagement.Hashicorp.Vault.KV -NuGetApiKey $env:NUGET_KEY
+  artifacts:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/upload-artifact@v2
+      with:
+        name: SecretManagement.Hashicorp.Vault.KV
+        path: /tmp/artifacts/SecretManagement.Hashicorp.Vault.KV
+        if-no-files-found: error
+  release:
+    if: success()
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: ncipollo/release-action@v1
+    - name: "Get Version"
+      shell: pwsh
+      run: |
+        $Version = Test-ModuleManifest -Path /tmp/artifacts/SecretManagement.Hashicorp.Vault.KV
+        echo "tag=$Version.Version.ToString()" >> $GITHUB_ENV
+        if ($null -eq $($test.privatedata.psdata.prerelease)) {echo "prerelase=false" >> $GITHUB_ENV} else {echo "prerelase=true" >> $GITHUB_ENV}
+    - name: "Release"
+      with:
+        artifacts: "SecretManagement.Hashicorp.Vault.KV"
+        tag: ${{ env.tag }}
+        prerelease: ${{ env.prerelease }}
+        bodyFile: "body.md"
+        token: ${{ secrets.GITHUB_TOKEN }}
