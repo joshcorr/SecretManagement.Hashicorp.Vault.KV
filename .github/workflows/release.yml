@@ -1,5 +1,5 @@
 ---
-name: publish
+name: release
 on:
   pull_request:
     types: [closed]
@@ -34,11 +34,11 @@ jobs:
           path: /tmp/artifacts/SecretManagement.Hashicorp.Vault.KV
           if-no-files-found: error
   release:
-    if: success()
+    if: ${{ success() }}
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
     - name: "Get Version"
+      uses: actions/checkout@v2
       shell: pwsh
       run: |
         $Version = Test-ModuleManifest -Path /tmp/artifacts/SecretManagement.Hashicorp.Vault.KV
