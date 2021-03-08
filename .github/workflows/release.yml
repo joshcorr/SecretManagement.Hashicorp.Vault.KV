@@ -24,7 +24,9 @@ jobs:
         run: |
           New-Item -Name /tmp/artifacts/SecretManagement.Hashicorp.Vault.KV -ItemType Directory -Force
           Copy-Item -path ./src/* -Destination /tmp/artifacts/SecretManagement.Hashicorp.Vault.KV/ -Recurse
-          Publish-Module -Path /tmp/artifacts/SecretManagement.Hashicorp.Vault.KV -NuGetApiKey $env:NUGET_KEY
+          $before = [Environment]::GetEnvironmentVariable('PSModulePath')
+          [environment]::SetEnvironmentVariable('PSModulePath',"/tmp/artifacts/;$before")
+          Publish-Module -Name SecretManagement.Hashicorp.Vault.KV -NuGetApiKey $env:NUGET_KEY
       - name: Create Artifact
         if: ${{ success() }}
         uses: actions/upload-artifact@v2
