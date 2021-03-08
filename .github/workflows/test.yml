@@ -32,7 +32,20 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest, macOS-latest]
     steps:
-      - uses: actions/checkout@v2
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Setup PowerShell module cache
+        id: cacher
+        uses: actions/cache@v2
+        with:
+          path: "~/.local/share/powershell/Modules"
+          key: ${{ runner.os }}-SecretManagement
+      - name: Install required PowerShell modules
+        if: steps.cacher.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          Set-PSRepository PSGallery -InstallationPolicy Trusted
+          Install-Module -Name Microsoft.PowerShell.SecretManagement -ErrorAction Stop
       - name: Perform the import
         shell: pwsh
         run: Import-Module ./src/SecretManagement.Hashicorp.Vault.KV.Extension/SecretManagement.Hashicorp.Vault.KV.Extension.psd1 -ErrorAction Stop; (Get-Command -Module SecretManagement.Hashicorp.Vault.KV.Extension) -ne $null

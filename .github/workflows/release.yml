@@ -17,6 +17,18 @@ jobs:
     steps:
       - name: Check out repository code
         uses: actions/checkout@v2
+      - name: Setup PowerShell module cache
+        id: cacher
+        uses: actions/cache@v2
+        with:
+          path: "~/.local/share/powershell/Modules"
+          key: ${{ runner.os }}-SecretManagement
+      - name: Install required PowerShell modules
+        if: steps.cacher.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          Set-PSRepository PSGallery -InstallationPolicy Trusted
+          Install-Module -Name Microsoft.PowerShell.SecretManagement -ErrorAction Stop
       - name: Build and Publish Module
         shell: pwsh
         env:
@@ -24,9 +36,7 @@ jobs:
         run: |
           New-Item -Name /tmp/artifacts/SecretManagement.Hashicorp.Vault.KV -ItemType Directory -Force
           Copy-Item -path ./src/* -Destination /tmp/artifacts/SecretManagement.Hashicorp.Vault.KV/ -Recurse
-          $before = [Environment]::GetEnvironmentVariable('PSModulePath')
-          [environment]::SetEnvironmentVariable('PSModulePath',"/tmp/artifacts/;$before")
-          Publish-Module -Name SecretManagement.Hashicorp.Vault.KV -NuGetApiKey $env:NUGET_KEY
+          Publish-Module -Path /tmp/artifacts/SecretManagement.Hashicorp.Vault.KV -NuGetApiKey $env:NUGET_KEY
       - name: Create Artifact
         if: ${{ success() }}
         uses: actions/upload-artifact@v2
