@@ -23,7 +23,7 @@ jobs:
           NUGET_KEY: ${{ secrets.NUGET_APIKEY }}
         run: |
           New-Item -Name /tmp/artifacts/SecretManagement.Hashicorp.Vault.KV -ItemType Directory -Force
-          Copy-Item -path ./src/* -Destination /tmp/artifacts/SecretManagement.Hashicorp.Vault.KV/
+          Copy-Item -path ./src/* -Destination /tmp/artifacts/SecretManagement.Hashicorp.Vault.KV/ -Recurse
           Publish-Module -Path /tmp/artifacts/SecretManagement.Hashicorp.Vault.KV -NuGetApiKey $env:NUGET_KEY
       - name: Create Artifact
         if: ${{ success() }}
