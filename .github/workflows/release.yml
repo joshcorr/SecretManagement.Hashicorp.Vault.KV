@@ -32,16 +32,17 @@ jobs:
       - name: Build Module
         shell: pwsh
         run: |
-          Copy-Item -path src/* -Destination /tmp/artifacts/SecretManagement.Hashicorp.Vault.KV/ -Recurse -Force
-      - name: Create Artifact
-        if: ${{ success() }}
-        uses: actions/upload-artifact@v2
-        with:
-          name: SecretManagement.Hashicorp.Vault.KV
-          path: |
-            /tmp/artifacts/SecretManagement.Hashicorp.Vault.KV/
-            /tmp/artifacts/SecretManagement.Hashicorp.Vault.KV/SecretManagement.Hashicorp.Vault.KV.Extension/
-          if-no-files-found: error
+          Copy-Item -path src/ -Destination /tmp/artifacts/SecretManagement.Hashicorp.Vault.KV/ -Recurse -Force
+      # No need for artifacts yet
+      # - name: Create Artifact
+      #   if: ${{ success() }}
+      #   uses: actions/upload-artifact@v2
+      #   with:
+      #     name: SecretManagement.Hashicorp.Vault.KV
+      #     path: |
+      #       /tmp/artifacts/SecretManagement.Hashicorp.Vault.KV/
+      #       /tmp/artifacts/SecretManagement.Hashicorp.Vault.KV/SecretManagement.Hashicorp.Vault.KV.Extension/
+      #     if-no-files-found: error
       - name: Get Version
         if: ${{ success() }}
         shell: pwsh
