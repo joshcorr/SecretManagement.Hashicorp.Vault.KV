@@ -1,5 +1,5 @@
 @{
-    ModuleVersion        = '0.0.3'
+    ModuleVersion        = '0.0.4'
     CompatiblePSEditions = @('Desktop', 'Core')
     GUID                 = '5dbf943d-d9c0-4db5-88a2-1995043a6305'
     Author               = 'Josh Corrick'
@@ -24,6 +24,9 @@
             ProjectUri                 = 'https://github.com/joshcorr/SecretManagement.Hashicorp.Vault.KV'
             # IconUri = ''
             ReleaseNotes               = @'
+v0.0.4
+More Github Actions changes
+
 v0.0.3
 Github Actions changes
 

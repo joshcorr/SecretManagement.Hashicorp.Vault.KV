@@ -35,20 +35,22 @@ jobs:
           NUGET_KEY: ${{ secrets.NUGET_APIKEY }}
         run: |
           New-Item -Name /tmp/artifacts/SecretManagement.Hashicorp.Vault.KV -ItemType Directory -Force
-          Copy-Item -path ./src/* -Destination /tmp/artifacts/SecretManagement.Hashicorp.Vault.KV/ -Recurse
+          Copy-Item -path src/* -Destination /tmp/artifacts/SecretManagement.Hashicorp.Vault.KV/ -Recurse -Force
           Publish-Module -Path /tmp/artifacts/SecretManagement.Hashicorp.Vault.KV -NuGetApiKey $env:NUGET_KEY
       - name: Create Artifact
         if: ${{ success() }}
         uses: actions/upload-artifact@v2
         with:
           name: SecretManagement.Hashicorp.Vault.KV
-          path: /tmp/artifacts/SecretManagement.Hashicorp.Vault.KV
+          path: |
+            /tmp/artifacts/SecretManagement.Hashicorp.Vault.KV/
+            /tmp/artifacts/SecretManagement.Hashicorp.Vault.KV/SecretManagement.Hashicorp.Vault.KV.Extension/
           if-no-files-found: error
       - name: "Get Version"
         if: ${{ success() }}
         shell: pwsh
         run: |
-          $Version = Test-ModuleManifest -Path /tmp/artifacts/SecretManagement.Hashicorp.Vault.KV
+          $Version = Test-ModuleManifest -Path /tmp/artifacts/SecretManagement.Hashicorp.Vault.KV/SecretManagement.Hashicorp.Vault.KV.psd1
           echo "tag=$Version.Version.ToString()" >> $GITHUB_ENV
           if ($null -eq $($test.privatedata.psdata.prerelease)) {echo "prerelase=false" >> $GITHUB_ENV} else {echo "prerelase=true" >> $GITHUB_ENV}
       - name: "Release"
