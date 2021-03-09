@@ -66,6 +66,50 @@ function Test-VaultVariable {
         }
     }
 }
+function New-Vault {
+    <#
+    .SYNOPSIS
+        Creates a new vault
+    #>
+    [CmdletBinding()]
+    param (
+        [Parameter(ValueFromPipelineByPropertyName, Mandatory)]
+        [string] $VaultName,
+        [Parameter(ValueFromPipelineByPropertyName)]
+        [hashtable] $AdditionalParameters
+    )
+    try {
+        $headers = New-VaultAPIHeader
+        $serverURI = $([HashicorpVaultKV]::VaultServer), $([HashicorpVaultKV]::VaultAPIVersion), 'sys/mounts', $VaultName -join '/'
+
+        if ([HashicorpVaultKV]::KVVersion -eq 'v1') {
+            $version = '1'
+        } else {
+            $version = '2'
+        }
+        $VaultSplat = @{
+            URI     = $serverURI
+            Method  = 'POST'
+            Headers = $Headers
+        }
+        $VaultOptions = @{
+            type        = 'kv'
+            description = $AdditionalParameters['Description']
+            options     = @{
+                version = $version
+            }
+        }
+        $body = $VaultOptions | ConvertTo-Json
+
+        if ($null -ne $body) { $VaultSplat['Body'] = $body }
+        Invoke-RestMethod @VaultSplat
+    } catch {
+        throw
+    } finally {
+        #Probably unecessary, but precautionary.
+        $VaultSplat, $VaultOption, $listuri, $uri, $Method, $Headers, $Body = $null
+    }
+}
 function New-VaultAPIHeader {
     <#
     .SYNOPSIS
@@ -140,7 +184,7 @@ function Invoke-VaultAPIQuery {
     )
     try {
         $headers = New-VaultAPIHeader
-        $serverURI = "$([HashicorpVaultKV]::VaultServer)/$([HashicorpVaultKV]::VaultAPIVersion)"
+        $serverURI = $([HashicorpVaultKV]::VaultServer), $([HashicorpVaultKV]::VaultAPIVersion) -join '/'
         $baseURI = "$serverURI/$VaultName"
         $CallStack = (Get-PSCallStack)[1]
         $CallingCommand = $CallStack.Command
@@ -364,11 +408,19 @@ function Test-SecretVault {
         }
 
         #This should return $null if the vault doesn't exist
-        $SelectedVault = $VaultHealth[1].$("$VaultName/")
-        if ($null -eq $SelectedVault) {
-            Throw "$VaultName does not exist at $([HashicorpVaultKV]::VaultServer)"
+        if ($VaultHealth[1].Gettype().Name -eq 'PSCustomObject' ) {
+            #Some older version may not support this method
+            $SelectedVault = $VaultHealth[1].$("$VaultName/")
+        } else {
+            $SelectedVault = $VaultHealth[1] -Match "$VaultName/"
         }
-
+        if ($null -eq $SelectedVault) {
+            #Create Vault if one specified doesn't exist
+            $Response = Read-Host -Prompt "$VaultName does not exist on $([HashicorpVaultKV]::VaultServer). Create it? (Yes/No)"
+            if ($Response -imatch '^Y') {
+                New-Vault -VaultName $VaultName -AdditionalParameters $AdditionalParameters
+            }
+        }
         return $?
     }
 }
