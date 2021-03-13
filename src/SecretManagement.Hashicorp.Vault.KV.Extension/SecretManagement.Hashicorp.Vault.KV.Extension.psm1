@@ -110,6 +110,36 @@ function New-Vault {
         $VaultSplat, $VaultOption, $listuri, $uri, $Method, $Headers, $Body = $null
     }
 }
+function Remove-Vault {
+    <#
+    .SYNOPSIS
+        Removes a vault
+    #>
+    [CmdletBinding()]
+    param (
+        [Parameter(ValueFromPipelineByPropertyName, Mandatory)]
+        [string] $VaultName,
+        [Parameter(ValueFromPipelineByPropertyName)]
+        [hashtable] $AdditionalParameters
+    )
+    try {
+        $headers = New-VaultAPIHeader
+        $serverURI = $([HashicorpVaultKV]::VaultServer), $([HashicorpVaultKV]::VaultAPIVersion), 'sys/mounts', $VaultName -join '/'
+
+        $VaultSplat = @{
+            URI     = $serverURI
+            Method  = 'DELETE'
+            Headers = $Headers
+        }
+
+        Invoke-RestMethod @VaultSplat
+    } catch {
+        throw
+    } finally {
+        #Probably unecessary, but precautionary.
+        $VaultSplat, $serverURI, $Headers = $null
+    }
+}
 function New-VaultAPIHeader {
     <#
     .SYNOPSIS
@@ -128,18 +158,40 @@ function New-VaultAPIBody {
     #>
     [CmdletBinding()]
     param (
-        [Cmdletbinding()]
-        [hashtable]$Data
+        [Parameter()]
+        [hashtable[]]$Data
     )
-    if ([HashicorpVaultKV]::KVVersion -eq 'v1') {
-        $Tempbody = $Data
-    } elseif ([HashicorpVaultKV]::KVVersion -eq 'v2') {
-        $Tempbody = @{
-            data = $Data
+    try {
+        $CombinedData = @{}
+        foreach ($ht in $Data.GetEnumerator()) {
+            #Because of multiple Hashtables
+            foreach ($d in $ht.GetEnumerator()) {
+                if ($d.key -in $CombinedData.Keys ) {
+                    Write-Verbose -Message "Key: '$($d.key)' already provided"
+                }
+                if ($d.key -in @('cas', 'checkandset')) {
+                    $options = @{"cas" = [int]$d.value }
+                }
+                $CombinedData["$($d.key)"] = $d.value
+            }
         }
+        if ([HashicorpVaultKV]::KVVersion -eq 'v1') {
+            $Tempbody = $CombinedData
+        } elseif ([HashicorpVaultKV]::KVVersion -eq 'v2') {
+            $Tempbody = @{
+                data = $CombinedData
+            }
+            if ($null -ne $options) {
+                $Tempbody['options'] = $options
+            }
+        }
+        $OutputBody = $Tempbody | ConvertTo-Json
+        return $OutputBody
+    } catch {
+        throw
+    } finally {
+        $CombinedData, $OutputBody, $Tempbody, $options, $ht, $data = $Null
     }
-    $OutputBody = $Tempbody | ConvertTo-Json
-    return $OutputBody
 }
 function Resolve-VaultSecretPath {
     <#
@@ -175,12 +227,14 @@ function Invoke-VaultAPIQuery {
     #>
     [CmdletBinding()]
     param (
-        [Cmdletbinding()]
+        [Parameter()]
         [string]$VaultName,
-        [Cmdletbinding()]
+        [Parameter()]
         [string]$SecretName,
-        [Cmdletbinding()]
-        [object]$SecretValue
+        [Parameter()]
+        [object]$SecretValue,
+        [Parameter()]
+        [hashtable]$Metadata
     )
     try {
         $headers = New-VaultAPIHeader
@@ -200,12 +254,7 @@ function Invoke-VaultAPIQuery {
 
         switch ($CallingVerb) {
             Get {
-                if ($CallingNoun -eq 'SecretInfo') {
-                    $Method = 'LIST'
-                    $uri = $listuri
-                } else {
-                    $Method = 'GET'
-                }
+                $Method = 'GET'
             }
             Set {
                 $Method = 'POST'
@@ -214,7 +263,11 @@ function Invoke-VaultAPIQuery {
                 } else {
                     $Name = $SecretName
                 }
-                $Body = New-VaultAPIBody -data @{$Name = $SecretValue }
+                if ($SecretValue.GetType().Name -eq 'Hashtable') {
+                    $Body = New-VaultAPIBody -data $SecretValue, $Metadata
+                } else {
+                    $Body = New-VaultAPIBody -data @{$Name = $SecretValue }, $Metadata
+                }
             }
             Test {
                 $method = 'GET'
@@ -254,7 +307,7 @@ function Invoke-VaultAPIQuery {
         throw
     } finally {
         #Probably unecessary, but precautionary.
-        $VaultSplat, $listuri, $uri, $Method, $Headers, $Body = $null
+        $VaultSplat, $listuri, $uri, $Method, $Headers, $Metadata, $Body = $null
     }
 }
 # Public functions
@@ -278,13 +331,23 @@ function Get-Secret {
         $SecretData = Invoke-VaultAPIQuery -VaultName $VaultName -SecretName $Name
         switch ([HashicorpVaultKV]::KVVersion) {
             'v1' {
-                $Secret = $SecretData.data
-                $SecretObject = [PSCredential]::new($Name, ($Secret.$SecretName | ConvertTo-SecureString -AsPlainText -Force))
+                if ($($SecretData.data.psobject.properties | Measure-Object).Count -gt 1) {
+                    $Secret = $SecretData.data
+                    $SecretObject = [PSCredential]::new($Name, ($Secret | ConvertTo-SecureString -AsPlainText -Force))
+                } else {
+                    $Secret = $SecretData.data
+                    $SecretObject = [PSCredential]::new($Name, ($Secret.$SecretName | ConvertTo-SecureString -AsPlainText -Force))
+                }
                 continue
             }
             'v2' {
-                $Secret = $SecretData.data.data
-                $SecretObject = [PSCredential]::new($Name, ($Secret.$SecretName | ConvertTo-SecureString -AsPlainText -Force))
+                if ($($SecretData.data.data.psobject.properties | Measure-Object).Count -gt 1) {
+                    $Secret = $SecretData.data.data
+                    $SecretObject = [PSCredential]::new($Name, ($Secret | ConvertTo-SecureString -AsPlainText -Force))
+                } else {
+                    $Secret = $SecretData.data.data
+                    $SecretObject = [PSCredential]::new($Name, ($Secret.$SecretName | ConvertTo-SecureString -AsPlainText -Force))
+                }
                 continue
             }
             default { throw "Unknown KeyVaule version" }
@@ -310,6 +373,13 @@ function Get-SecretInfo {
         $VaultSecrets |
         Where-Object { $PSItem -like $Filter } |
         ForEach-Object {
+            if ([HashicorpVaultKV]::KVVersion -eq 'v1') {
+                $Metadata = $null
+            } else {
+                $vault_metadata = (Invoke-VaultAPIQuery -VaultName $VaultName -SecretName $PSItem).data.metadata
+                $Metadata = [Ordered]@{}
+                $vault_metadata.psobject.properties | ForEach-Object { $Metadata[$PSItem.Name] = $PSItem.Value }
+            }
             [Microsoft.PowerShell.SecretManagement.SecretInformation]::new(
                 "$PSItem",
                 "String",
@@ -327,7 +397,9 @@ function Set-Secret {
         [Parameter(ValueFromPipelineByPropertyName)]
         [string] $VaultName,
         [Parameter(ValueFromPipelineByPropertyName)]
-        [hashtable] $AdditionalParameters
+        [hashtable] $AdditionalParameters,
+        [Parameter(ValueFromPipelineByPropertyName)]
+        [hashtable] $Metadata
     )
     process {
         $null = Test-SecretVault -VaultName $VaultName -AdditionalParameters $AdditionalParameters
@@ -342,12 +414,15 @@ function Set-Secret {
             'PSCredential' {
                 $SecretValue = $Secret.Password | ConvertFrom-SecureString -AsPlainText
             }
+            'Hashtable' {
+                $SecretValue = $Secret
+            }
             default {
                 throw "Unsupported secret type: $($Secret.GetType().Name)"
             }
         }
 
-        $SecretData = Invoke-VaultAPIQuery -VaultName $VaultName -SecretName $Name -SecretValue $SecretValue
+        $SecretData = Invoke-VaultAPIQuery -VaultName $VaultName -SecretName $Name -SecretValue $SecretValue -Metadata $Metadata
 
         #$? represents the success/fail of the last execution
         if (-not $?) {
@@ -417,10 +492,27 @@ function Test-SecretVault {
         if ($null -eq $SelectedVault) {
             #Create Vault if one specified doesn't exist
             $Response = Read-Host -Prompt "$VaultName does not exist on $([HashicorpVaultKV]::VaultServer). Create it? (Yes/No)"
-            if ($Response -imatch '^Y') {
+            if ($Response -imatch '^Y$|^yes$') {
                 New-Vault -VaultName $VaultName -AdditionalParameters $AdditionalParameters
             }
         }
         return $?
+    }
+}
+function Unregister-SecretVault {
+    [CmdletBinding()]
+    param (
+        [Parameter(ValueFromPipelineByPropertyName)]
+        [string] $VaultName,
+        [Parameter(ValueFromPipelineByPropertyName)]
+        [hashtable] $AdditionalParameters
+    )
+    process {
+        $null = Test-SecretVault -VaultName $VaultName -AdditionalParameters $AdditionalParameters
+
+        $Response = Read-Host -Prompt "Do you want to disable $VaultName on $([HashicorpVaultKV]::VaultServer) as well? (Yes/No) NOTE: This will remove all Secrets"
+        if ($Response -imatch '^Y$|^yes$') {
+            Remove-Vault -VaultName $VaultName -AdditionalParameters $AdditionalParameters
+        }
     }
 }

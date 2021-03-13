@@ -1,5 +1,5 @@
 @{
-    ModuleVersion        = '0.0.7'
+    ModuleVersion        = '0.0.8'
     CompatiblePSEditions = @('Desktop', 'Core')
     GUID                 = '5dbf943d-d9c0-4db5-88a2-1995043a6305'
     Author               = 'Josh Corrick'
@@ -24,6 +24,9 @@
             ProjectUri                 = 'https://github.com/joshcorr/SecretManagement.Hashicorp.Vault.KV'
             # IconUri = ''
             ReleaseNotes               = @'
+v0.0.8
+Support Hashtable; Creating Metadata; Removing Vaults
+
 v0.0.7
 Create New Vault; Fix Test-SecretVault
 

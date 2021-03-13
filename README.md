@@ -27,7 +27,6 @@ $VaultParameters = @{ VaultServer = 'https://vault-cluster.domain.local'
 - Remove-Secret Completely Removes the secret and all versions
 
 ## TO DO
-- Create a vault if it doesn't exist
 - Allow token updating
 - Allow options for KV2 version retrieval
 
