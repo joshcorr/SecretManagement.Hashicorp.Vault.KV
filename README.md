@@ -2,7 +2,7 @@
 [![GitHubSuper-Linter][]][GitHubSuper-LinterLink]
 [![PSGallery][]][PSGalleryLink]
 
-A PowerShell SecretManagement extension for Hashicorp Vault Key Value (KV) Engine. This supports version 1, version2, and  cubbyhole (similar to v1). It does not currently support all of the version 2 features like versioned secrets, or metadata.
+A PowerShell SecretManagement extension for Hashicorp Vault Key Value (KV) Engine. This supports version 1, version2, and  cubbyhole (similar to v1). It does not currently support all of the version 2 features like versioned secrets.
 
 > **NOTE: This project is not a maintained by Hashicorp.**  
 > **I work on this in my free time because I use Vault.**  
@@ -11,19 +11,20 @@ A PowerShell SecretManagement extension for Hashicorp Vault Key Value (KV) Engin
 ## QuickStart
 When registering a vault you need to provide at least these options:
 ```PowerShell
-Register-SecretVault -ModuleName SecretManagement.Hashicorp.Vault.KV -Name PowerShellTest -VaultParameters @{ VaultServer = 'http://vault.domain.local:8200'; VaultToken = '<orNot>'}
+Register-SecretVault -ModuleName SecretManagement.Hashicorp.Vault.KV -Name PowerShellTest -VaultParameters @{ VaultServer = 'http://vault.domain.local:8200'; VaultAuthType = 'Token'}
 ```
-The vault name should match exactly as Hashicorp vault is case sensitive. If no VaultParameters are provided the functions will prompt you on the first execution. Additionally you may provide which version of KV you are using when registering. It defaults to version 2 of KV.  
+The vault name should match exactly as Hashicorp vault is case sensitive. If no VaultParameters are provided the functions will prompt you on the first execution in your session. Additionally you may provide which version of KV you are using when registering. It defaults to version 2 of KV.  
 
 ```PowerShell
 $VaultParameters = @{ VaultServer = 'https://vault-cluster.domain.local'
-   VaultToken = '<s.somecharactershere>'
-   KVVersion = 'v2'}
+   VaultToken=$(Read-Host -AsSecureString | ConvertFrom-SecureString)
+   KVVersion = 'v1'}
 ```
 
 ## KV Version 2 distinctions
 - Get-Secret only retrieves the newest secret
-- Set-Secret Adds/Updates without CheckAndSet.
+- Get-SecretInfo retrieves the Hashicorp Metadata.
+- Set-Secret Adds/Updates without CheckAndSet. Althought it can be passed with `-Metadata @{cas=<versionNumber>}`
 - Remove-Secret Completely Removes the secret and all versions
 
 ## TO DO
