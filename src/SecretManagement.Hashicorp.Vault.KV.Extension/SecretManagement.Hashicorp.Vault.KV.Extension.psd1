@@ -1,5 +1,5 @@
 @{
-    ModuleVersion     = '0.0.9'
+    ModuleVersion     = '0.0.10'
     RootModule        = 'SecretManagement.Hashicorp.Vault.KV.Extension.psm1'
     FunctionsToExport = @('Set-Secret', 'Get-Secret', 'Remove-Secret', 'Get-SecretInfo', 'Test-SecretVault', 'Unregister-SecretVault')
 }

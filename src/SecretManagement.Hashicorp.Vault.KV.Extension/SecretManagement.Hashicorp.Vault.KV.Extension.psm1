@@ -143,7 +143,7 @@ function Invoke-VaultToken {
             }
         }
         try {
-            if (-not [HashicorpVaultKV]::VaultAuthType -eq 'Token') {
+            if ([HashicorpVaultKV]::VaultAuthType -ne 'Token') {
                 $auth = (Invoke-RestMethod -Method POST -Uri $UserLogin -Body $UserPassword)
                 [HashicorpVaultKV]::VaultToken = $auth.auth.client_token | ConvertTo-SecureString -AsPlainText -Force
             }
