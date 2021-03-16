@@ -116,14 +116,14 @@ function Invoke-VaultToken {
                 if (-not [System.Guid]::TryParse($UserName, [System.Management.Automation.PSReference]$AppRoleResult)) {
                     throw "Approle Role-id must be a valid guid"
                 }
-                $UserLogin = "$([HashicorpVaultKV]::VaultServer)/auth/approle/login"
+                $UserLogin = "$([HashicorpVaultKV]::VaultServer)/$([HashicorpVaultKV]::VaultAPIVersion)/auth/approle/login"
                 $UserPassword = "{`"role_id`":`"$UserName`",`"secret_id`":`"$($Credential.GetNetworkCredential().Password)`"}"
                 continue
             }
             "LDAP" {
                 $Credential = Get-Credential -Message "Please Enter LDAP credentials"
                 $UserName = $Credential.UserName
-                $UserLogin = "$([HashicorpVaultKV]::VaultServer)/auth/ldap/login/$UserName"
+                $UserLogin = "$([HashicorpVaultKV]::VaultServer)/$([HashicorpVaultKV]::VaultAPIVersion)/auth/ldap/login/$UserName"
                 $UserPassword = "{`"password`":`"$($Credential.GetNetworkCredential().Password)`"}"
                 continue
             }
@@ -134,7 +134,7 @@ function Invoke-VaultToken {
             "userpass" {
                 $Credential = Get-Credential -Message "Please Enter UserName and Password credentials"
                 $UserName = $Credential.UserName
-                $UserLogin = "$([HashicorpVaultKV]::VaultServer)/auth/userpass/login/$UserName"
+                $UserLogin = "$([HashicorpVaultKV]::VaultServer)/$([HashicorpVaultKV]::VaultAPIVersion)/auth/userpass/login/$UserName"
                 $UserPassword = "{`"password`":`"$($Credential.GetNetworkCredential().Password)`"}"
                 continue
             }
