@@ -27,6 +27,8 @@ If applicable, add screenshots to help explain your problem.
  - OS: [e.g. Win10]
  - PowerShell Version [e.g. $PSVersionTable]
  - Microsoft.PowerShell.SecretManagement Version [e.g. Get-Module Microsoft.PowerShell.SecretManagement ]
+ - SecretManagement.Hashicorp.Vault.KV Version
+ - Hashicorp Vault Version 
 
 
 **Additional context**
