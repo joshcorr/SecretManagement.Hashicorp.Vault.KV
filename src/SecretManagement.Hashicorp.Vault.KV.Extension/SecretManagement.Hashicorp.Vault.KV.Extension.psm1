@@ -168,35 +168,37 @@ function New-Vault {
         [Parameter(ValueFromPipelineByPropertyName)]
         [hashtable] $AdditionalParameters
     )
-    try {
-        $serverURI = $([HashicorpVaultKV]::VaultServer), $([HashicorpVaultKV]::VaultAPIVersion), 'sys/mounts', $VaultName -join '/'
+    process {
+        try {
+            $serverURI = $([HashicorpVaultKV]::VaultServer), $([HashicorpVaultKV]::VaultAPIVersion), 'sys/mounts', $VaultName -join '/'
 
-        if ([HashicorpVaultKV]::KVVersion -eq 'v1') {
-            $version = '1'
-        } else {
-            $version = '2'
-        }
-        $VaultSplat = @{
-            URI     = $serverURI
-            Method  = 'POST'
-            Headers = New-VaultAPIHeader
-        }
-        $VaultOptions = @{
-            type        = 'kv'
-            description = $AdditionalParameters['Description']
-            options     = @{
-                version = $version
+            if ([HashicorpVaultKV]::KVVersion -eq 'v1') {
+                $version = '1'
+            } else {
+                $version = '2'
             }
-        }
-        $body = $VaultOptions | ConvertTo-Json
+            $VaultSplat = @{
+                URI     = $serverURI
+                Method  = 'POST'
+                Headers = New-VaultAPIHeader
+            }
+            $VaultOptions = @{
+                type        = 'kv'
+                description = $AdditionalParameters['Description']
+                options     = @{
+                    version = $version
+                }
+            }
+            $body = $VaultOptions | ConvertTo-Json
 
-        if ($null -ne $body) { $VaultSplat['Body'] = $body }
-        Invoke-RestMethod @VaultSplat
-    } catch {
-        throw
-    } finally {
-        #Probably unecessary, but precautionary.
-        $VaultSplat, $VaultOption, $listuri, $uri, $Method, $Body = $null
+            if ($null -ne $body) { $VaultSplat['Body'] = $body }
+            Invoke-RestMethod @VaultSplat
+        } catch {
+            throw
+        } finally {
+            #Probably unecessary, but precautionary.
+            $VaultSplat, $VaultOption, $listuri, $uri, $Method, $Body = $null
+        }
     }
 }
 function Remove-Vault {
@@ -211,21 +213,23 @@ function Remove-Vault {
         [Parameter(ValueFromPipelineByPropertyName)]
         [hashtable] $AdditionalParameters
     )
-    try {
-        $serverURI = $([HashicorpVaultKV]::VaultServer), $([HashicorpVaultKV]::VaultAPIVersion), 'sys/mounts', $VaultName -join '/'
+    process {
+        try {
+            $serverURI = $([HashicorpVaultKV]::VaultServer), $([HashicorpVaultKV]::VaultAPIVersion), 'sys/mounts', $VaultName -join '/'
+            Write-Verbose "Removing $VaultName. $AdditionalParameters['Description']"
+            $VaultSplat = @{
+                URI     = $serverURI
+                Method  = 'DELETE'
+                Headers = New-VaultAPIHeader
+            }
 
-        $VaultSplat = @{
-            URI     = $serverURI
-            Method  = 'DELETE'
-            Headers = New-VaultAPIHeader
+            Invoke-RestMethod @VaultSplat
+        } catch {
+            throw
+        } finally {
+            #Probably unecessary, but precautionary.
+            $VaultSplat, $serverURI = $null
         }
-
-        Invoke-RestMethod @VaultSplat
-    } catch {
-        throw
-    } finally {
-        #Probably unecessary, but precautionary.
-        $VaultSplat, $serverURI = $null
     }
 }
 function New-VaultAPIHeader {
@@ -580,27 +584,42 @@ function Test-SecretVault {
         try {
             $VaultHealth = (Invoke-VaultAPIQuery -VaultName $VaultName)
         } catch {
-            throw "Something occured while communicating with $([HashicorpVaultKV]::VaultServer). Doublecheck the URL"
-        }
-
-        if ($VaultHealth[0].sealed -eq 'True') {
-            Throw "The Hashicorp Vault at $([HashicorpVaultKV]::VaultServer) is sealed"
-        }
-
-        #This should return $null if the vault doesn't exist
-        if ($VaultHealth[1].Gettype().Name -eq 'PSCustomObject' ) {
-            #Some older version may not support this method
-            $SelectedVault = $VaultHealth[1].$("$VaultName/")
-        } else {
-            $SelectedVault = $VaultHealth[1] -Match "$VaultName/"
-        }
-        if ($null -eq $SelectedVault) {
-            #Create Vault if one specified doesn't exist
-            $Response = Read-Host -Prompt "$VaultName does not exist on $([HashicorpVaultKV]::VaultServer). Create it? (Yes/No)"
-            if ($Response -imatch '^Y$|^yes$') {
-                New-Vault -VaultName $VaultName -AdditionalParameters $AdditionalParameters
+            $CheckError = $PSItem.Exception.Response.StatusCode.value__
+            $URL = $PSItem.TargetObject.RequestURI.AbsoluteUri
+            #Right from https://www.vaultproject.io/api-docs#http-status-codes
+            Switch ($CheckError) {
+                '400' { Write-Warning -Message "$URL; Invalid request, missing or invalid data" ; continue }
+                '403' { Write-Warning -Message "$URL; Forbidden, your authentication details are either incorrect, you don't have access to this feature, or - if CORS is enabled - you made a cross-origin request from an origin that is not allowed to make such requests."; continue }
+                '404' { Write-Warning -Message "$URL; Invalid path. This can both mean that the path truly doesn't exist or that you don't have permission to view a specific path."; continue }
+                '429' { Write-Warning -Message "$URL; Default return code for health status of standby nodes"; continue }
+                '473' { Write-Warning -Message "$URL; Default return code for health status of performance standby nodes"; continue }
+                '500' { Write-Warning -Message "$URL; Internal server error. An internal error has occurred, try again later."; continue }
+                '502' { Write-Warning -Message "$URL; A request to Vault required Vault making a request to a third party; the third party responded with an error of some kind."; continue }
+                '503' { Write-Warning -Message "$URL; Vault is down for maintenance or is currently sealed. Try again later."; continue }
+                default { throw "$URL; Something occured while communicating with $([HashicorpVaultKV]::VaultServer)" }
             }
         }
+        if ($CheckError -notin @('403', '404')) {
+            if ($VaultHealth[0].sealed -eq 'True') {
+                Throw "The Hashicorp Vault at $([HashicorpVaultKV]::VaultServer) is sealed"
+            }
+
+            #This should return $null if the vault doesn't exist
+            if ($VaultHealth[1].Gettype().Name -eq 'PSCustomObject' ) {
+                #Some older version may not support this method
+                $SelectedVault = $VaultHealth[1].$("$VaultName/")
+            } else {
+                $SelectedVault = $VaultHealth[1] -Match "$VaultName/"
+            }
+            if ($null -eq $SelectedVault) {
+                #Create Vault if one specified doesn't exist
+                $Response = Read-Host -Prompt "$VaultName does not exist on $([HashicorpVaultKV]::VaultServer). Attempt to create it? (Yes/No)"
+                if ($Response -imatch '^Y$|^yes$') {
+                    New-Vault -VaultName $VaultName -AdditionalParameters $AdditionalParameters
+                }
+            }
+        }
+
         return $?
     }
 }
