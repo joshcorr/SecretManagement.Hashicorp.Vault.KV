@@ -168,35 +168,37 @@ function New-Vault {
         [Parameter(ValueFromPipelineByPropertyName)]
         [hashtable] $AdditionalParameters
     )
-    try {
-        $serverURI = $([HashicorpVaultKV]::VaultServer), $([HashicorpVaultKV]::VaultAPIVersion), 'sys/mounts', $VaultName -join '/'
+    process {
+        try {
+            $serverURI = $([HashicorpVaultKV]::VaultServer), $([HashicorpVaultKV]::VaultAPIVersion), 'sys/mounts', $VaultName -join '/'
 
-        if ([HashicorpVaultKV]::KVVersion -eq 'v1') {
-            $version = '1'
-        } else {
-            $version = '2'
-        }
-        $VaultSplat = @{
-            URI     = $serverURI
-            Method  = 'POST'
-            Headers = New-VaultAPIHeader
-        }
-        $VaultOptions = @{
-            type        = 'kv'
-            description = $AdditionalParameters['Description']
-            options     = @{
-                version = $version
+            if ([HashicorpVaultKV]::KVVersion -eq 'v1') {
+                $version = '1'
+            } else {
+                $version = '2'
             }
-        }
-        $body = $VaultOptions | ConvertTo-Json
+            $VaultSplat = @{
+                URI     = $serverURI
+                Method  = 'POST'
+                Headers = New-VaultAPIHeader
+            }
+            $VaultOptions = @{
+                type        = 'kv'
+                description = $AdditionalParameters['Description']
+                options     = @{
+                    version = $version
+                }
+            }
+            $body = $VaultOptions | ConvertTo-Json
 
-        if ($null -ne $body) { $VaultSplat['Body'] = $body }
-        Invoke-RestMethod @VaultSplat
-    } catch {
-        throw
-    } finally {
-        #Probably unecessary, but precautionary.
-        $VaultSplat, $VaultOption, $listuri, $uri, $Method, $Body = $null
+            if ($null -ne $body) { $VaultSplat['Body'] = $body }
+            Invoke-RestMethod @VaultSplat
+        } catch {
+            throw
+        } finally {
+            #Probably unecessary, but precautionary.
+            $VaultSplat, $VaultOption, $listuri, $uri, $Method, $Body = $null
+        }
     }
 }
 function Remove-Vault {
@@ -211,21 +213,23 @@ function Remove-Vault {
         [Parameter(ValueFromPipelineByPropertyName)]
         [hashtable] $AdditionalParameters
     )
-    try {
-        $serverURI = $([HashicorpVaultKV]::VaultServer), $([HashicorpVaultKV]::VaultAPIVersion), 'sys/mounts', $VaultName -join '/'
+    process {
+        try {
+            $serverURI = $([HashicorpVaultKV]::VaultServer), $([HashicorpVaultKV]::VaultAPIVersion), 'sys/mounts', $VaultName -join '/'
+            Write-Verbose "Removing $VaultName. $AdditionalParameters['Description']"
+            $VaultSplat = @{
+                URI     = $serverURI
+                Method  = 'DELETE'
+                Headers = New-VaultAPIHeader
+            }
 
-        $VaultSplat = @{
-            URI     = $serverURI
-            Method  = 'DELETE'
-            Headers = New-VaultAPIHeader
+            Invoke-RestMethod @VaultSplat
+        } catch {
+            throw
+        } finally {
+            #Probably unecessary, but precautionary.
+            $VaultSplat, $serverURI = $null
         }
-
-        Invoke-RestMethod @VaultSplat
-    } catch {
-        throw
-    } finally {
-        #Probably unecessary, but precautionary.
-        $VaultSplat, $serverURI = $null
     }
 }
 function New-VaultAPIHeader {
