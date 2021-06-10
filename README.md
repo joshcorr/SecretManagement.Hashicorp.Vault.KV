@@ -30,7 +30,7 @@ $VaultParameters @{ ...
 ```
 The Default is to return it as a Hashtable.
 
-When setting secrets in your vault. You may provide either a single text value or a hashtable to the `-Secret` parameter.
+When setting secrets in your vault, You may provide either a single text value or a hashtable to the `-Secret` parameter.  
 
 ## KV Version 2 distinctions
 - Get-Secret only retrieves the newest secret
