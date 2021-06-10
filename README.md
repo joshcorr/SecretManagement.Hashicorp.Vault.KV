@@ -21,15 +21,22 @@ $VaultParameters = @{ VaultServer = 'https://vault-cluster.domain.local'
    KVVersion = 'v1'}
 ```
 
+If you stored your secrets in a flat structure (i.e. no slashes in your path).
+You may want to return all secrets as a PSCredential. You can do this by providing the following:
+```powershell
+$VaultParameters @{ ...
+    OutputType = 'PSCredential'
+}
+```
+The Default is to return it as a Hashtable.
+
+You may provide either a single text string or a hashtable to the `-Secret` parameter.
+
 ## KV Version 2 distinctions
 - Get-Secret only retrieves the newest secret
 - Get-SecretInfo retrieves the Hashicorp Metadata.
 - Set-Secret Adds/Updates without CheckAndSet. Althought it can be passed with `-Metadata @{cas=<versionNumber>}`
 - Remove-Secret Completely Removes the secret and all versions
-
-## TO DO
-- Allow token updating
-- Allow options for KV2 version retrieval
 
 
 [GitHubSuper-Linter]: https://github.com/joshcorr/SecretManagement.Hashicorp.Vault.KV/workflows/ci/badge.svg
