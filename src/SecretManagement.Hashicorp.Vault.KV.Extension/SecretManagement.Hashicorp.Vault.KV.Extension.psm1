@@ -605,7 +605,12 @@ function Test-SecretVault {
         }
 
         if ($Null -eq [HashicorpVaultKV]::VaultToken) {
+            Write-Verbose "Retrieving a Token for authenticating to Vault"
             Invoke-VaultToken
+        }
+        if ($Null -eq [HashicorpVaultKV]::OutputType) {
+            [HashicorpVaultKV]::OutputType = 'Hashtable'
+            Write-Verbose "Setting Default Output Type to Hashtable"
         }
 
         #The rest runs provided the top 4 items are correct
