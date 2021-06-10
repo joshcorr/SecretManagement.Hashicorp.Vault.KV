@@ -22,7 +22,7 @@
             LicenseUri                 = 'https://raw.githubusercontent.com/joshcorr/SecretManagement.Hashicorp.Vault.KV/main/LICENSE'
             ProjectUri                 = 'https://github.com/joshcorr/SecretManagement.Hashicorp.Vault.KV'
             # IconUri = ''
-            ReleaseNotes               = ReleaseNotes = 'https://raw.githubusercontent.com/joshcorr/SecretManagement.Hashicorp.Vault.KV/main/CHANGELOG.md'
+            ReleaseNotes               = 'https://raw.githubusercontent.com/joshcorr/SecretManagement.Hashicorp.Vault.KV/main/CHANGELOG.md'
         }
     }
 }
