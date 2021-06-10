@@ -30,7 +30,7 @@ Version Bump
 More Github Actions changes
 ## [0.0.3] - 2021-03-08
 Github Actions changes
-## [0.0.2] - 2021-03-08 
+## [0.0.2] - 2021-03-08
 Fixes for SecretsManagement RC1
 ## [0.0.1] - 2020-10-27
 Initial Preview Release
