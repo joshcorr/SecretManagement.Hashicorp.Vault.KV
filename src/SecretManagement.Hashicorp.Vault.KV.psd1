@@ -1,5 +1,5 @@
 @{
-    ModuleVersion        = '1.0.1'
+    ModuleVersion        = '1.0.2'
     CompatiblePSEditions = @('Desktop', 'Core')
     GUID                 = '5dbf943d-d9c0-4db5-88a2-1995043a6305'
     Author               = 'Josh Corrick'
@@ -22,40 +22,7 @@
             LicenseUri                 = 'https://raw.githubusercontent.com/joshcorr/SecretManagement.Hashicorp.Vault.KV/main/LICENSE'
             ProjectUri                 = 'https://github.com/joshcorr/SecretManagement.Hashicorp.Vault.KV'
             # IconUri = ''
-            ReleaseNotes               = @'
-v1.0.0
-Update About, and remove Preview Tag
-
-v0.0.10 - v0.0.11
-Fix login logic bug
-
-v0.0.9
-Better Token Management; Retrieving Metadata
-
-v0.0.8
-Support Hashtable; Creating Metadata; Removing Vaults
-
-v0.0.7
-Create New Vault; Fix Test-SecretVault
-
-v0.0.6
-Required Secrets Version; Fix folder structure
-
-v0.0.5
-Version Bump
-
-v0.0.4
-More Github Actions changes
-
-v0.0.3
-Github Actions changes
-
-v0.0.2
-Fixes for SecretsManagement RC1
-
-v0.0.1
-Initial Preview Release
-'@
+            ReleaseNotes               = ReleaseNotes = 'https://raw.githubusercontent.com/joshcorr/SecretManagement.Hashicorp.Vault.KV/main/CHANGELOG.md'
         }
     }
 }

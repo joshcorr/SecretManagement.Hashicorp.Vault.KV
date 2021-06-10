@@ -8,6 +8,7 @@ enum HashicorpVaultConfigValues {
     VaultToken
     VaultAPIVersion
     KVVersion
+    OutputType
     Verbose
 }
 enum HashicorpVaultAuthTypes {
@@ -23,6 +24,7 @@ class HashicorpVaultKV {
     static [Securestring] $VaultToken
     static [string] $VaultAPIVersion = 'v1'
     static [string] $KVVersion = 'v2'
+    static [string] $OutputType = 'Hashtable'
     static [bool] $Verbose
 }
 function Invoke-CustomWebRequest {
@@ -429,22 +431,48 @@ function Get-Secret {
         $SecretData = Invoke-VaultAPIQuery -VaultName $VaultName -SecretName $Name
         switch ([HashicorpVaultKV]::KVVersion) {
             'v1' {
-                if ($SecretData.data.psobject.properties.Name -notcontains $SecretName) {
-                    $Secret = $SecretData.data
-                    $SecretObject = [PSCredential]::new($Name, ($Secret | ConvertTo-SecureString -AsPlainText -Force))
-                } else {
-                    $Secret = $SecretData.data
-                    $SecretObject = [PSCredential]::new($Name, ($Secret.$SecretName | ConvertTo-SecureString -AsPlainText -Force))
+                switch ([HashicorpVaultKV]::OutputType) {
+                    'PSCredential' {
+                        if ($SecretData.data.psobject.properties.Name -notcontains $SecretName) {
+                            $Secret = $SecretData.data
+                            $SecretObject = [PSCredential]::new($Name, ($Secret | ConvertTo-SecureString -AsPlainText -Force))
+                        } else {
+                            $Secret = $SecretData.data
+                            $SecretObject = [PSCredential]::new($Name, ($Secret.$SecretName | ConvertTo-SecureString -AsPlainText -Force))
+                        }
+                        continue
+                    }
+                    'Hashtable' {
+                        $Secret = $SecretData.data
+                        $Hashtable = @{}
+                        $Secret.psobject.properties | ForEach-Object { $Hashtable[$PSItem.name] = $PSItem.value }
+                        $SecretObject = $Hashtable
+                        continue
+                    }
+                    default { throw "$([HashicorpVaultKV]::OutputType) OutputType not supported" }
                 }
                 continue
             }
             'v2' {
-                if ($SecretData.data.data.psobject.properties.Name -notcontains $SecretName) {
-                    $Secret = $SecretData.data.data
-                    $SecretObject = [PSCredential]::new($Name, ($Secret | ConvertTo-SecureString -AsPlainText -Force))
-                } else {
-                    $Secret = $SecretData.data.data
-                    $SecretObject = [PSCredential]::new($Name, ($Secret.$SecretName | ConvertTo-SecureString -AsPlainText -Force))
+                switch ([HashicorpVaultKV]::OutputType) {
+                    'PSCredential' {
+                        if ($SecretData.data.data.psobject.properties.Name -notcontains $SecretName) {
+                            $Secret = $SecretData.data.data
+                            $SecretObject = [PSCredential]::new($Name, ($Secret | ConvertTo-SecureString -AsPlainText -Force))
+                        } else {
+                            $Secret = $SecretData.data.data
+                            $SecretObject = [PSCredential]::new($Name, ($Secret.$SecretName | ConvertTo-SecureString -AsPlainText -Force))
+                        }
+                        continue
+                    }
+                    'Hashtable' {
+                        $Secret = $SecretData.data.data
+                        $Hashtable = @{}
+                        $Secret.psobject.properties | ForEach-Object { $Hashtable[$PSItem.name] = $PSItem.value }
+                        $SecretObject = $Hashtable
+                        continue
+                    }
+                    default { throw "$([HashicorpVaultKV]::OutputType) OutputType not supported" }
                 }
                 continue
             }
