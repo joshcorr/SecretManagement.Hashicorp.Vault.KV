@@ -11,7 +11,7 @@ describe "SecretManagement Usage with $ModuleName" {
         $VaultParameters = @{ VaultServer = 'http://127.0.0.1:8200'; VaultToken = $(ConvertTo-SecureString -AsPlainText -Force -String 'root'| ConvertFrom-SecureString); VaultAuthType = 'Token'; KVVersion = 'v2'}
         {Register-SecretVault -ModuleName SecretManagement.Hashicorp.Vault.KV -Name pester -VaultParameters $VaultParameters} | Should -Not -Throw
     }
-    It "Should unregister the vault 'pester'" {
-        {Unregister-SecretVault -Name pester} | Should -Not -Throw
+    It "Should fail to unregister the vault 'pester'" {
+        {Unregister-SecretVault -Name pester -ErrorAction Stop} | Should -Throw
     }
 }
