@@ -14,6 +14,7 @@ This module is an extension for [Microsoft.PowerShell.SecretManagement](https://
 - Writing Tests
 
 ### Ground Rules
+
 Here are some guidelines for Pull Requests (PR) in this project.
 
 - All PRs to Development must have an issue
@@ -21,6 +22,7 @@ Here are some guidelines for Pull Requests (PR) in this project.
 - Keep PRs limited to as few files as possible (if major change 1-to-1 PR)
 
 ### Your First Contribution
+
 If this is your first time contributing to an opensource project, welcome! Here are some helpful tips for your first PR.
 
 - Look for items marked as "good first issue" (these usually only require a few easy changes)
