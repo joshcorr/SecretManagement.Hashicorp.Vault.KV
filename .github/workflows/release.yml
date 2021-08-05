@@ -4,10 +4,10 @@ on:
   pull_request:
     types: [closed]
     branches:
-    - main
+      - main
   push:
     branches:
-    - main
+      - main
 
 jobs:
   publish:
@@ -32,7 +32,7 @@ jobs:
       - name: Build Module
         shell: pwsh
         run: |
-          Copy-Item -path src/ -Destination /tmp/artifacts/SecretManagement.Hashicorp.Vault.KV/ -Recurse -Force
+          Copy-Item -path SecretManagement.Hashicorp.Vault.KV/ -Destination /tmp/artifacts/SecretManagement.Hashicorp.Vault.KV/ -Recurse -Force
       # No need for artifacts yet
       # - name: Create Artifact
       #   if: ${{ success() }}
@@ -56,7 +56,6 @@ jobs:
           NUGET_KEY: ${{ secrets.NUGET_APIKEY }}
         run: |
           Publish-Module -Path /tmp/artifacts/SecretManagement.Hashicorp.Vault.KV -NuGetApiKey $env:NUGET_KEY
-
       # Need to figure out tagging in pipeline first
       # - name: "Release"
       #   uses: ncipollo/release-action@v1

@@ -3,8 +3,8 @@ name: test
 on:
   pull_request:
     branches:
-    - main
-    - development
+      - main
+      - development
 
 jobs:
   lint:
@@ -46,6 +46,11 @@ jobs:
         run: |
           Set-PSRepository PSGallery -InstallationPolicy Trusted
           Install-Module -Name Microsoft.PowerShell.SecretManagement -ErrorAction Stop
+          Install-Module -Name Pester -MinimumVersion 5.2.0 -ErrorAction Stop
       - name: Perform the import
         shell: pwsh
-        run: Import-Module ./src/SecretManagement.Hashicorp.Vault.KV.Extension/SecretManagement.Hashicorp.Vault.KV.Extension.psd1 -ErrorAction Stop; (Get-Command -Module SecretManagement.Hashicorp.Vault.KV.Extension) -ne $null
+        run: Import-Module ./SecretManagement.Hashicorp.Vault.KV/SecretManagement.Hashicorp.Vault.KV.Extension/SecretManagement.Hashicorp.Vault.KV.Extension.psd1 -ErrorAction Stop
+      - name: Execute Pester Tests
+        shell: pwsh
+        run: |
+          Invoke-Pester ./tests/* -Output Detailed
