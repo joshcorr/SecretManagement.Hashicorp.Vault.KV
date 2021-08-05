@@ -49,7 +49,7 @@ jobs:
           Install-Module -Name Pester -MinimumVersion 5.2.0 -ErrorAction Stop
       - name: Perform the import
         shell: pwsh
-        run: Import-Module ./src/SecretManagement.Hashicorp.Vault.KV.Extension/SecretManagement.Hashicorp.Vault.KV.Extension.psd1 -ErrorAction Stop
+        run: Import-Module ./SecretManagement.Hashicorp.Vault.KV/SecretManagement.Hashicorp.Vault.KV.Extension/SecretManagement.Hashicorp.Vault.KV.Extension.psd1 -ErrorAction Stop
       - name: Execute Pester Tests
         shell: pwsh
         run: |
