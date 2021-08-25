@@ -281,7 +281,7 @@ function New-VaultAPIBody {
                 $Tempbody['options'] = $options
             }
         }
-        $OutputBody = $Tempbody | ConvertTo-Json
+        $OutputBody = $Tempbody | ConvertTo-Json -Depth 10
         return $OutputBody
     } catch {
         throw
