@@ -17,6 +17,7 @@ enum HashicorpVaultAuthTypes {
     LDAP
     userpass
     Token
+    kerberos
 }
 class HashicorpVaultKV {
     static [string] $VaultServer
@@ -109,6 +110,7 @@ function Invoke-VaultToken {
         Retrieves Token based on Supported Credential
     #>
     process {
+        $additionalInvokeRestArguments = @{};
         switch ([HashicorpVaultKV]::VaultAuthType) {
             "AppRole" {
                 $Credential = Get-Credential -Message "Please Enter Role-Id and Secret-Id"
@@ -129,6 +131,11 @@ function Invoke-VaultToken {
                 $UserPassword = "{`"password`":`"$($Credential.GetNetworkCredential().Password)`"}"
                 continue
             }
+            "kerberos" {
+                $UserLogin = "$([HashicorpVaultKV]::VaultServer)/$([HashicorpVaultKV]::VaultAPIVersion)/auth/kerberos/login"
+                $additionalInvokeRestArguments.Add('UseDefaultCredentials', $true);
+                continue
+            }
             "Token" {
                 [HashicorpVaultKV]::VaultToken = (Get-Credential -UserName Token -Message "Please Enter the token").Password
                 break
@@ -146,7 +153,7 @@ function Invoke-VaultToken {
         }
         try {
             if ([HashicorpVaultKV]::VaultAuthType -ne 'Token') {
-                $auth = (Invoke-RestMethod -Method POST -Uri $UserLogin -Body $UserPassword)
+                $auth = (Invoke-RestMethod -Method POST -Uri $UserLogin -Body $UserPassword @additionalInvokeRestArguments)
                 [HashicorpVaultKV]::VaultToken = $auth.auth.client_token | ConvertTo-SecureString -AsPlainText -Force
             }
             #Register an Event to prompt whent he token is expiring
