@@ -6,7 +6,6 @@ BeforeDiscovery {
 describe "SecretManagement Usage with $ModuleName" {
     beforeall {
         mock -CommandName Read-Host -MockWith {"yes"}
-        mock -CommandName Test-SecretVault -MockWith {"yes"}
     }
     It "Should register the vault 'pester'" {
         $VaultParameters = @{ VaultServer = 'http://127.0.0.1:8200'; VaultToken = $(ConvertTo-SecureString -AsPlainText -Force -String 'root'| ConvertFrom-SecureString); VaultAuthType = 'Token'; KVVersion = 'v2'}
