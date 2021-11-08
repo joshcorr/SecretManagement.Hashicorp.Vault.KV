@@ -1,7 +1,7 @@
 # For ConvertTo-ReadOnlyDictonary
 using namespace System.Collections.ObjectModel
 using namespace System.Collections.Generic
-# Private Helper Functions
+# Enum and Classes used for session variable lookup
 enum HashicorpVaultConfigValues {
     VaultServer
     VaultAuthType
@@ -17,15 +17,42 @@ enum HashicorpVaultAuthTypes {
     LDAP
     userpass
     Token
+    RenewToken
 }
 class HashicorpVaultKV {
+    # Values that can be registered
     static [string] $VaultServer
     static [HashicorpVaultAuthTypes] $VaultAuthType = 'None'
     static [Securestring] $VaultToken
     static [string] $VaultAPIVersion = 'v1'
     static [string] $KVVersion = 'v2'
     static [string] $OutputType = 'Hashtable'
+    # Internally used
+    static [bool] $TokenRenewable
+    static [double] $TokenLifespan
+    static [string] $TokenType
+    static [datetime] $TokenExpireTime
     static [bool] $Verbose
+}
+# Private Functions
+function ConvertTo-ReadOnlyDictionary {
+    <#
+        .SYNOPSIS
+        Converts a hashtable to a ReadOnlyDictionary[String,Object]. Needed for SecretInformation
+        .NOTES
+        From Justin Grote at https://github.com/JustinGrote/SecretManagement.KeePass/blob/main/SecretManagement.KeePass.Extension/Private/ConvertTo-ReadOnlyDictionary.ps1
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(ValueFromPipeline)][hashtable]$hashtable
+    )
+    process {
+        $dictionary = [SortedDictionary[string, object]]::new([StringComparer]::OrdinalIgnoreCase)
+        $hashtable.GetEnumerator().foreach{
+            $dictionary[$_.Name] = $_.Value
+        }
+        [ReadOnlyDictionary[string, object]]::new($dictionary)
+    }
 }
 function Invoke-CustomWebRequest {
     <#
@@ -59,262 +86,6 @@ function Invoke-CustomWebRequest {
     }
     $Client.Dispose()
     $Request.Dispose()
-}
-function ConvertTo-ReadOnlyDictionary {
-    <#
-        .SYNOPSIS
-        Converts a hashtable to a ReadOnlyDictionary[String,Object]. Needed for SecretInformation
-        .NOTES
-        From Justin Grote at https://github.com/JustinGrote/SecretManagement.KeePass/blob/main/SecretManagement.KeePass.Extension/Private/ConvertTo-ReadOnlyDictionary.ps1
-    #>
-    [CmdletBinding()]
-    param(
-        [Parameter(ValueFromPipeline)][hashtable]$hashtable
-    )
-    process {
-        $dictionary = [SortedDictionary[string, object]]::new([StringComparer]::OrdinalIgnoreCase)
-        $hashtable.GetEnumerator().foreach{
-            $dictionary[$_.Name] = $_.Value
-        }
-        [ReadOnlyDictionary[string, object]]::new($dictionary)
-    }
-}
-function Test-VaultVariable {
-    <#
-    .SYNOPSIS
-        Ensures that all Static Variables are configured
-    #>
-    [Cmdletbinding()]
-    param (
-        [Parameter()]
-        [hashtable]$Arguments
-    )
-    foreach ($k in $Arguments.GetEnumerator()) {
-        if ($k.Key -notin [HashicorpVaultConfigValues].GetEnumNames()) {
-            Write-Warning -Message "$($k.Key) not in accepted config values, skipping"
-            continue
-        }
-        if ($k.key -eq 'VaultToken') {
-            [HashicorpVaultKV]::$($k.Key) = $($k.Value | ConvertTo-SecureString)
-            continue
-        }
-        if ($null -eq [HashicorpVaultKV]::$($k.key) -or [HashicorpVaultKV]::$($k.key) -ne $($k.key)) {
-            [HashicorpVaultKV]::$($k.Key) = $k.Value
-        }
-    }
-}
-function Invoke-VaultToken {
-    <#
-    .SYNOPSIS
-        Retrieves Token based on Supported Credential
-    #>
-    process {
-        switch ([HashicorpVaultKV]::VaultAuthType) {
-            "AppRole" {
-                $Credential = Get-Credential -Message "Please Enter Role-Id and Secret-Id"
-                $UserName = $Credential.UserName
-                #Following TryParse from https://stackoverflow.com/a/62416925
-                $AppRoleResult = [System.Guid]::empty
-                if (-not [System.Guid]::TryParse($UserName, [System.Management.Automation.PSReference]$AppRoleResult)) {
-                    throw "Approle Role-id must be a valid guid"
-                }
-                $UserLogin = "$([HashicorpVaultKV]::VaultServer)/$([HashicorpVaultKV]::VaultAPIVersion)/auth/approle/login"
-                $UserPassword = "{`"role_id`":`"$UserName`",`"secret_id`":`"$($Credential.GetNetworkCredential().Password)`"}"
-                continue
-            }
-            "LDAP" {
-                $Credential = Get-Credential -Message "Please Enter LDAP credentials"
-                $UserName = $Credential.UserName
-                $UserLogin = "$([HashicorpVaultKV]::VaultServer)/$([HashicorpVaultKV]::VaultAPIVersion)/auth/ldap/login/$UserName"
-                $UserPassword = "{`"password`":`"$($Credential.GetNetworkCredential().Password)`"}"
-                continue
-            }
-            "Token" {
-                [HashicorpVaultKV]::VaultToken = (Get-Credential -UserName Token -Message "Please Enter the token").Password
-                break
-            }
-            "userpass" {
-                $Credential = Get-Credential -Message "Please Enter UserName and Password credentials"
-                $UserName = $Credential.UserName
-                $UserLogin = "$([HashicorpVaultKV]::VaultServer)/$([HashicorpVaultKV]::VaultAPIVersion)/auth/userpass/login/$UserName"
-                $UserPassword = "{`"password`":`"$($Credential.GetNetworkCredential().Password)`"}"
-                continue
-            }
-            default {
-                throw "This shouldn't be possible please create an issue on  https://github.com/joshcorr/SecretManagement.Hashicorp.Vault.KV"
-            }
-        }
-        try {
-            if ([HashicorpVaultKV]::VaultAuthType -ne 'Token') {
-                $auth = (Invoke-RestMethod -Method POST -Uri $UserLogin -Body $UserPassword)
-                [HashicorpVaultKV]::VaultToken = $auth.auth.client_token | ConvertTo-SecureString -AsPlainText -Force
-            }
-            #Register an Event to prompt whent he token is expiring
-            #Register-ObjectEvent
-        } catch {
-            throw
-        } finally {
-            $auth, $UserName, $UserPassword, $UserLogin, $Credential, $AppRoleResult = $null
-        }
-    }
-}
-function New-Vault {
-    <#
-    .SYNOPSIS
-        Creates a new vault
-    #>
-    [CmdletBinding()]
-    param (
-        [Parameter(ValueFromPipelineByPropertyName, Mandatory)]
-        [string] $VaultName,
-        [Parameter(ValueFromPipelineByPropertyName)]
-        [hashtable] $AdditionalParameters
-    )
-    process {
-        try {
-            $serverURI = $([HashicorpVaultKV]::VaultServer), $([HashicorpVaultKV]::VaultAPIVersion), 'sys/mounts', $VaultName -join '/'
-
-            if ([HashicorpVaultKV]::KVVersion -eq 'v1') {
-                $version = '1'
-            } else {
-                $version = '2'
-            }
-            $VaultSplat = @{
-                URI     = $serverURI
-                Method  = 'POST'
-                Headers = New-VaultAPIHeader
-            }
-            $VaultOptions = @{
-                type        = 'kv'
-                description = $AdditionalParameters['Description']
-                options     = @{
-                    version = $version
-                }
-            }
-            $body = $VaultOptions | ConvertTo-Json
-
-            if ($null -ne $body) { $VaultSplat['Body'] = $body }
-            Invoke-RestMethod @VaultSplat
-        } catch {
-            throw
-        } finally {
-            #Probably unecessary, but precautionary.
-            $VaultSplat, $VaultOption, $listuri, $uri, $Method, $Body = $null
-        }
-    }
-}
-function Remove-Vault {
-    <#
-    .SYNOPSIS
-        Removes a vault
-    #>
-    [CmdletBinding()]
-    param (
-        [Parameter(ValueFromPipelineByPropertyName, Mandatory)]
-        [string] $VaultName,
-        [Parameter(ValueFromPipelineByPropertyName)]
-        [hashtable] $AdditionalParameters
-    )
-    process {
-        try {
-            $serverURI = $([HashicorpVaultKV]::VaultServer), $([HashicorpVaultKV]::VaultAPIVersion), 'sys/mounts', $VaultName -join '/'
-            Write-Verbose "Removing $VaultName. $AdditionalParameters['Description']"
-            $VaultSplat = @{
-                URI     = $serverURI
-                Method  = 'DELETE'
-                Headers = New-VaultAPIHeader
-            }
-
-            Invoke-RestMethod @VaultSplat
-        } catch {
-            throw
-        } finally {
-            #Probably unecessary, but precautionary.
-            $VaultSplat, $serverURI = $null
-        }
-    }
-}
-function New-VaultAPIHeader {
-    <#
-    .SYNOPSIS
-        Creates a header for an API call
-    .NOTES
-        Token conversion From https://stackoverflow.com/a/57431985
-    #>
-    @{
-        'Content-Type'  = 'application/json'
-        'Accept'        = 'application/json'
-        'X-Vault-Token' = $([System.Net.NetworkCredential]::new("", $([HashicorpVaultKV]::VaultToken)).Password)
-    }
-}
-function New-VaultAPIBody {
-    <#
-    .SYNOPSIS
-        Creates the Body of an API call for Set-Secret
-    #>
-    [CmdletBinding()]
-    param (
-        [Parameter()]
-        [hashtable[]]$Data
-    )
-    try {
-        $CombinedData = @{}
-        foreach ($ht in $Data.GetEnumerator()) {
-            #Because of multiple Hashtables
-            foreach ($d in $ht.GetEnumerator()) {
-                if ($d.key -in $CombinedData.Keys ) {
-                    Write-Verbose -Message "Key: '$($d.key)' already provided"
-                }
-                if ($d.key -in @('cas', 'checkandset')) {
-                    $options = @{"cas" = [int]$d.value }
-                }
-                $CombinedData["$($d.key)"] = $d.value
-            }
-        }
-        if ([HashicorpVaultKV]::KVVersion -eq 'v1') {
-            $Tempbody = $CombinedData
-        } elseif ([HashicorpVaultKV]::KVVersion -eq 'v2') {
-            $Tempbody = @{
-                data = $CombinedData
-            }
-            if ($null -ne $options) {
-                $Tempbody['options'] = $options
-            }
-        }
-        $OutputBody = $Tempbody | ConvertTo-Json -Depth 10
-        return $OutputBody
-    } catch {
-        throw
-    } finally {
-        $CombinedData, $OutputBody, $Tempbody, $options, $ht, $data = $Null
-    }
-}
-function Resolve-VaultSecretPath {
-    <#
-    .SYNOPSIS
-        Walks the Hashicorp KV strucutre to list secrets
-    #>
-    [CmdletBinding()]
-    param(
-        [Parameter(Mandatory)]
-        [string]$VaultName,
-        [Parameter()]
-        [string]$Path
-    )
-    $Data = (Invoke-VaultAPIQuery -VaultName $VaultName -SecretName $Path).data
-    foreach ($k in $data.Keys) {
-        $KeyPath = $Path, $k -join '/'
-
-        if ($KeyPath.endswith('/')) {
-            $ResolveSplat = @{
-                VaultName = $VaultName
-                Path      = $keyPath.Trim('/')
-            }
-            Resolve-VaultSecretPath @ResolveSplat
-        } else {
-            $KeyPath.TrimStart('/')
-        }
-    }
 }
 function Invoke-VaultAPIQuery {
     <#
@@ -394,20 +165,202 @@ function Invoke-VaultAPIQuery {
         if ($null -ne $body) { $VaultSplat['Body'] = $body }
 
         if ($method -eq 'List') {
-            Invoke-CustomWebRequest @VaultSplat
+            Invoke-CustomWebRequest @VaultSplat -ErrorVariable RestError
         } elseif ($CallingVerb -eq 'Test') {
             foreach ($u in $($uri -split ',')) {
                 $VaultSplat['URI'] = $u
-                Invoke-RestMethod @VaultSplat
+                Invoke-RestMethod @VaultSplat -ErrorVariable RestError
             }
         } else {
-            Invoke-RestMethod @VaultSplat
+            Invoke-RestMethod @VaultSplat -ErrorVariable RestError
         }
     } catch {
-        throw
+        Write-Error -Message "Received an error: $($RestError.message)"
     } finally {
         #Probably unecessary, but precautionary.
         $VaultSplat, $listuri, $uri, $Method, $Metadata, $Body = $null
+    }
+}
+function New-Vault {
+    <#
+    .SYNOPSIS
+        Creates a new vault
+    #>
+    [CmdletBinding()]
+    param (
+        [Parameter(ValueFromPipelineByPropertyName, Mandatory)]
+        [string] $VaultName,
+        [Parameter(ValueFromPipelineByPropertyName)]
+        [hashtable] $AdditionalParameters
+    )
+    process {
+        try {
+            $serverURI = $([HashicorpVaultKV]::VaultServer), $([HashicorpVaultKV]::VaultAPIVersion), 'sys/mounts', $VaultName -join '/'
+
+            if ([HashicorpVaultKV]::KVVersion -eq 'v1') {
+                $version = '1'
+            } else {
+                $version = '2'
+            }
+            $VaultSplat = @{
+                URI     = $serverURI
+                Method  = 'POST'
+                Headers = New-VaultAPIHeader
+            }
+            $VaultOptions = @{
+                type        = 'kv'
+                description = $AdditionalParameters['Description']
+                options     = @{
+                    version = $version
+                }
+            }
+            $body = $VaultOptions | ConvertTo-Json
+
+            if ($null -ne $body) { $VaultSplat['Body'] = $body }
+            Invoke-RestMethod @VaultSplat
+        } catch {
+            throw
+        } finally {
+            #Probably unecessary, but precautionary.
+            $VaultSplat, $VaultOption, $listuri, $uri, $Method, $Body = $null
+        }
+    }
+}
+function New-VaultAPIBody {
+    <#
+    .SYNOPSIS
+        Creates the Body of an API call for Set-Secret
+    #>
+    [CmdletBinding()]
+    param (
+        [Parameter()]
+        [hashtable[]]$Data
+    )
+    try {
+        $CombinedData = @{}
+        foreach ($ht in $Data.GetEnumerator()) {
+            #Because of multiple Hashtables
+            foreach ($d in $ht.GetEnumerator()) {
+                if ($d.key -in $CombinedData.Keys ) {
+                    Write-Verbose -Message "Key: '$($d.key)' already provided"
+                }
+                if ($d.key -in @('cas', 'checkandset')) {
+                    $options = @{"cas" = [int]$d.value }
+                }
+                $CombinedData["$($d.key)"] = $d.value
+            }
+        }
+        if ([HashicorpVaultKV]::KVVersion -eq 'v1') {
+            $Tempbody = $CombinedData
+        } elseif ([HashicorpVaultKV]::KVVersion -eq 'v2') {
+            $Tempbody = @{
+                data = $CombinedData
+            }
+            if ($null -ne $options) {
+                $Tempbody['options'] = $options
+            }
+        }
+        $OutputBody = $Tempbody | ConvertTo-Json -Depth 10
+        return $OutputBody
+    } catch {
+        throw
+    } finally {
+        $CombinedData, $OutputBody, $Tempbody, $options, $ht, $data = $Null
+    }
+}
+function New-VaultAPIHeader {
+    <#
+    .SYNOPSIS
+        Creates a header for an API call
+    .NOTES
+        Token conversion From https://stackoverflow.com/a/57431985
+    #>
+    @{
+        'Content-Type'  = 'application/json'
+        'Accept'        = 'application/json'
+        'X-Vault-Token' = $([System.Net.NetworkCredential]::new("", $([HashicorpVaultKV]::VaultToken)).Password)
+    }
+}
+function Remove-Vault {
+    <#
+    .SYNOPSIS
+        Removes a vault
+    #>
+    [CmdletBinding()]
+    param (
+        [Parameter(ValueFromPipelineByPropertyName, Mandatory)]
+        [string] $VaultName,
+        [Parameter(ValueFromPipelineByPropertyName)]
+        [hashtable] $AdditionalParameters
+    )
+    process {
+        try {
+            $serverURI = $([HashicorpVaultKV]::VaultServer), $([HashicorpVaultKV]::VaultAPIVersion), 'sys/mounts', $VaultName -join '/'
+            Write-Verbose "Removing $VaultName. $AdditionalParameters['Description']"
+            $VaultSplat = @{
+                URI     = $serverURI
+                Method  = 'DELETE'
+                Headers = New-VaultAPIHeader
+            }
+
+            Invoke-RestMethod @VaultSplat
+        } catch {
+            throw
+        } finally {
+            #Probably unecessary, but precautionary.
+            $VaultSplat, $serverURI = $null
+        }
+    }
+}
+function Resolve-VaultSecretPath {
+    <#
+    .SYNOPSIS
+        Walks the Hashicorp KV strucutre to list secrets
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$VaultName,
+        [Parameter()]
+        [string]$Path
+    )
+    $Data = (Invoke-VaultAPIQuery -VaultName $VaultName -SecretName $Path).data
+    foreach ($k in $data.Keys) {
+        $KeyPath = $Path, $k -join '/'
+
+        if ($KeyPath.endswith('/')) {
+            $ResolveSplat = @{
+                VaultName = $VaultName
+                Path      = $keyPath.Trim('/')
+            }
+            Resolve-VaultSecretPath @ResolveSplat
+        } else {
+            $KeyPath.TrimStart('/')
+        }
+    }
+}
+function Test-VaultVariable {
+    <#
+    .SYNOPSIS
+        Ensures that all Static Variables are configured
+    #>
+    [Cmdletbinding()]
+    param (
+        [Parameter()]
+        [hashtable]$Arguments
+    )
+    foreach ($k in $Arguments.GetEnumerator()) {
+        if ($k.Key -notin [HashicorpVaultConfigValues].GetEnumNames()) {
+            Write-Warning -Message "$($k.Key) not in accepted config values, skipping"
+            continue
+        }
+        if ($k.key -eq 'VaultToken') {
+            [HashicorpVaultKV]::$($k.Key) = $($k.Value | ConvertTo-SecureString)
+            continue
+        }
+        if ($null -eq [HashicorpVaultKV]::$($k.key) -or [HashicorpVaultKV]::$($k.key) -ne $($k.key)) {
+            [HashicorpVaultKV]::$($k.Key) = $k.Value
+        }
     }
 }
 # Public functions
@@ -422,13 +375,14 @@ function Get-Secret {
         [hashtable] $AdditionalParameters
     )
     process {
+        $VerboseSplat = @{Verbose = $AdditionalParameters['Verbose']}
         $null = Test-SecretVault -VaultName $VaultName -AdditionalParameters $AdditionalParameters
         if ($Name -match '/') {
             $SecretName = $($Name -split '/')[-1]
         } else {
             $SecretName = $Name
         }
-        $SecretData = Invoke-VaultAPIQuery -VaultName $VaultName -SecretName $Name
+        $SecretData = Invoke-VaultAPIQuery -VaultName $VaultName -SecretName $Name @VerboseSplat
         switch ([HashicorpVaultKV]::KVVersion) {
             'v1' {
                 switch ([HashicorpVaultKV]::OutputType) {
@@ -445,7 +399,7 @@ function Get-Secret {
                     'Hashtable' {
                         $Secret = $SecretData.data
                         $Hashtable = @{}
-                        $Secret.psobject.properties | ForEach-Object { $Hashtable[$PSItem.name] = $PSItem.value }
+                        $Secret.psobject.properties.foreach{ $Hashtable[$PSItem.name] = $PSItem.value }
                         $SecretObject = $Hashtable
                         continue
                     }
@@ -468,7 +422,7 @@ function Get-Secret {
                     'Hashtable' {
                         $Secret = $SecretData.data.data
                         $Hashtable = @{}
-                        $Secret.psobject.properties | ForEach-Object { $Hashtable[$PSItem.name] = $PSItem.value }
+                        $Secret.psobject.properties.foreach{ $Hashtable[$PSItem.name] = $PSItem.value }
                         $SecretObject = $Hashtable
                         continue
                     }
@@ -492,19 +446,19 @@ function Get-SecretInfo {
         [hashtable] $AdditionalParameters
     )
     process {
+        $VerboseSplat = @{Verbose = $AdditionalParameters['Verbose']}
         $null = Test-SecretVault -VaultName $VaultName -AdditionalParameters $AdditionalParameters
-
         $Filter = "*$Filter"
-        $VaultSecrets = Resolve-VaultSecretPath -VaultName $VaultName
+        $VaultSecrets = Resolve-VaultSecretPath -VaultName $VaultName @VerboseSplat
         $VaultSecrets |
-        Where-Object { $PSItem -like $Filter } |
-        ForEach-Object {
+            Where-Object { $PSItem -like $Filter } |
+            ForEach-Object {
             if ([HashicorpVaultKV]::KVVersion -eq 'v1') {
                 $Metadata = $null
             } else {
-                $vault_metadata = (Invoke-VaultAPIQuery -VaultName $VaultName -SecretName $PSItem).data.metadata
+                $vault_metadata = (Invoke-VaultAPIQuery -VaultName $VaultName -SecretName $PSItem @VerboseSplat).data.metadata
                 $Metadata = [Ordered]@{}
-                $vault_metadata.psobject.properties | ForEach-Object { $Metadata[$PSItem.Name] = $PSItem.Value }
+                $vault_metadata.psobject.properties.foreach{ $Metadata[$PSItem.Name] = $PSItem.Value }
                 $Dictonary = ConvertTo-ReadOnlyDictionary -hashtable $Metadata
             }
             [Microsoft.PowerShell.SecretManagement.SecretInformation]::new(
@@ -513,6 +467,28 @@ function Get-SecretInfo {
                 $VaultName,
                 $Dictonary)
         }
+    }
+}
+function Remove-Secret {
+    [CmdletBinding()]
+    param (
+        [Parameter(ValueFromPipelineByPropertyName)]
+        [string] $Name,
+        [Parameter(ValueFromPipelineByPropertyName)]
+        [string] $VaultName,
+        [Parameter(ValueFromPipelineByPropertyName)]
+        [hashtable] $AdditionalParameters
+    )
+    process {
+        $VerboseSplat = @{Verbose = $AdditionalParameters['Verbose']}
+        $null = Test-SecretVault -VaultName $VaultName -AdditionalParameters $AdditionalParameters
+        $SecretData = Invoke-VaultAPIQuery -VaultName $VaultName -SecretName $Name @VerboseSplat
+
+        #$? represents the success/fail of the last execution
+        if (-not $?) {
+            throw $SecretData
+        }
+        return $?
     }
 }
 function Set-Secret {
@@ -530,9 +506,14 @@ function Set-Secret {
         [hashtable] $Metadata
     )
     process {
+        $VerboseSplat = @{Verbose = $AdditionalParameters['Verbose']}
         $null = Test-SecretVault -VaultName $VaultName -AdditionalParameters $AdditionalParameters
 
         switch ($Secret.GetType()) {
+            'byte' {
+                $SecretValue = $Secret
+                continue
+            }
             'String' {
                 $SecretValue = $Secret
                 continue
@@ -554,28 +535,7 @@ function Set-Secret {
             }
         }
 
-        $SecretData = Invoke-VaultAPIQuery -VaultName $VaultName -SecretName $Name -SecretValue $SecretValue -Metadata $Metadata
-
-        #$? represents the success/fail of the last execution
-        if (-not $?) {
-            throw $SecretData
-        }
-        return $?
-    }
-}
-function Remove-Secret {
-    [CmdletBinding()]
-    param (
-        [Parameter(ValueFromPipelineByPropertyName)]
-        [string] $Name,
-        [Parameter(ValueFromPipelineByPropertyName)]
-        [string] $VaultName,
-        [Parameter(ValueFromPipelineByPropertyName)]
-        [hashtable] $AdditionalParameters
-    )
-    process {
-        $null = Test-SecretVault -VaultName $VaultName -AdditionalParameters $AdditionalParameters
-        $SecretData = Invoke-VaultAPIQuery -VaultName $VaultName -SecretName $Name
+        $SecretData = Invoke-VaultAPIQuery -VaultName $VaultName -SecretName $Name -SecretValue $SecretValue -Metadata $Metadata @VerboseSplat
 
         #$? represents the success/fail of the last execution
         if (-not $?) {
@@ -596,18 +556,19 @@ function Test-SecretVault {
         $ErrorActionPreference = 'STOP'
         Test-VaultVariable -Arguments $AdditionalParameters
 
+        # Ensure there is a VaultServer
         if ($null -eq [HashicorpVaultKV]::VaultServer) {
             [HashicorpVaultKV]::VaultServer = Read-Host -Prompt "Please provide the URL for the HashiCorp Vault (Example: https://myvault.domain.local)"
         }
 
+        # Ensure an authtype is defined
         if ('None' -eq [HashicorpVaultKV]::VaultAuthType) {
             [HashicorpVaultKV]::VaultAuthType = Read-Host -Prompt "Please provide the AuthType for your HashiCorp Vault. Supported Types: $([HashicorpVaultAuthTypes].GetEnumNames())"
         }
 
-        if ($Null -eq [HashicorpVaultKV]::VaultToken) {
-            Write-Verbose "Retrieving a Token for authenticating to Vault"
-            Invoke-VaultToken
-        }
+        # Unlock-SecretVault can safely handle ignoring existing tokens.
+        Unlock-SecretVault -vaultName $VaultName -AdditionalParameters $AdditionalParameters
+
         if ($Null -eq [HashicorpVaultKV]::OutputType) {
             [HashicorpVaultKV]::OutputType = 'Hashtable'
             Write-Verbose "Setting Default Output Type to Hashtable"
@@ -615,6 +576,7 @@ function Test-SecretVault {
 
         #The rest runs provided the top 4 items are correct
         try {
+            Write-Verbose -Message "Checking the health of $VaultName"
             $VaultHealth = (Invoke-VaultAPIQuery -VaultName $VaultName)
         } catch {
             $CheckError = $PSItem.Exception.Response.StatusCode.value__
@@ -652,8 +614,143 @@ function Test-SecretVault {
                 }
             }
         }
-
         return $?
+    }
+}
+function Unlock-SecretVault {
+    <#
+    .SYNOPSIS
+        Retrieves Token based on Supported Credential
+    #>
+    [CmdletBinding()]
+    param (
+        [Parameter(ValueFromPipelineByPropertyName)]
+        [SecureString] $Password,
+        [Parameter(ValueFromPipelineByPropertyName)]
+        [Alias('Name')]
+        [string] $VaultName,
+        [Parameter(ValueFromPipelineByPropertyName)]
+        [hashtable] $AdditionalParameters
+    )
+    process {
+        Test-VaultVariable -Arguments $AdditionalParameters
+        Write-Verbse "Grabbing token for $VaultName"
+        Write-Debug "Current TokenExpireTime: $([HashicorpVaultKV]::TokenExpireTime) and is a $(([HashicorpVaultKV]::TokenExpireTime).Gettype()) "
+        Write-Debug "Is Token renewable? $([HashicorpVaultKV]::TokenRenewable)"
+        Write-Debug "Token has a lifespan of $([HashicorpVaultKV]::TokenLifespan) seconds."
+        Write-Debug "Token type is $([HashicorpVaultKV]::TokenType)"
+        # Retrieve a token
+        if ($Null -eq [HashicorpVaultKV]::VaultToken) {
+            Write-Verbose "Retrieving a Token for authenticating to Vault"
+            $RenewToken = $false
+            #continue
+        } elseif ($Null -ne [HashicorpVaultKV]::VaultToken -and [HashicorpVaultKV]::TokenExpireTime -lt (Get-date)) {
+            # Retrieve a new token if expired
+            Write-Verbose "Token Expired at $([HashicorpVaultKV]::TokenExpireTime). Retieving a new token"
+            [HashicorpVaultKV]::VaultToken = $null
+            $RenewToken = $false
+            #continue
+        } elseif ($Null -ne [HashicorpVaultKV]::VaultToken -and (New-TimeSpan -Start (Get-date) -End ([HashicorpVaultKV]::TokenExpireTime)).Minutes -le 1 -and [HashicorpVaultKV]::TokenRenewable) {
+            # Renew a new token if about to expire
+            Write-Verbose "Token about to Expire at $([HashicorpVaultKV]::TokenExpireTime). Renewing the token for $([HashicorpVaultKV]::TokenLifespan) seconds."
+            $RenewToken = $true
+            [HashicorpVaultKV]::VaultAuthType = 'RenewToken'
+            #continue
+        } elseif ($Null -ne $Password -and $Password -eq [HashicorpVaultKV]::VaultToken ) {
+            Write-Verbose "Force renewing token."
+            $RenewToken = $true
+            [HashicorpVaultKV]::VaultAuthType = 'RenewToken'
+        } else {
+            Write-Verbose "Token is set to expire at: $([HashicorpVaultKV]::TokenExpireTime) and is of $([HashicorpVaultKV]::TokenType)"
+            break
+        }
+
+        $AuthType = [HashicorpVaultKV]::VaultAuthType
+
+        if ($Password -and $AuthType -ne 'Token' -and -not $RenewToken) {
+            $Login = Read-Host -Prompt "What is the $(if($AuthType -eq 'Approle'){'Role-Id'} else {'Username'})?"
+            $Credential = New-Object System.Management.Automation.PSCredential ($Login, $Password)
+        }
+        switch ([HashicorpVaultKV]::VaultAuthType) {
+            "AppRole" {
+                if ( -not $Credential) {
+                    $Credential = Get-Credential -Message "Please Enter Role-Id and Secret-Id"
+                }
+                $UserName = $Credential.UserName
+                #Following TryParse from https://stackoverflow.com/a/62416925
+                $AppRoleResult = [System.Guid]::empty
+                if (-not [System.Guid]::TryParse($UserName, [System.Management.Automation.PSReference]$AppRoleResult)) {
+                    throw "Approle Role-id must be a valid guid"
+                }
+                $UserLogin = "$([HashicorpVaultKV]::VaultServer)/$([HashicorpVaultKV]::VaultAPIVersion)/auth/approle/login"
+                $UserPassword = "{`"role_id`":`"$UserName`",`"secret_id`":`"$($Credential.GetNetworkCredential().Password)`"}"
+                continue
+            }
+            "LDAP" {
+                if (-not $Credential) {
+                    $Credential = Get-Credential -Message "Please Enter LDAP credentials"
+                }
+                $UserName = $Credential.UserName
+                $UserLogin = "$([HashicorpVaultKV]::VaultServer)/$([HashicorpVaultKV]::VaultAPIVersion)/auth/ldap/login/$UserName"
+                $UserPassword = "{`"password`":`"$($Credential.GetNetworkCredential().Password)`"}"
+                continue
+            }
+            "RenewToken" {
+                $UserLogin = "$([HashicorpVaultKV]::VaultServer)/$([HashicorpVaultKV]::VaultAPIVersion)/auth/token/renew-self"
+                $Headers = New-VaultAPIHeader
+                continue
+            }
+            "Token" {
+                [HashicorpVaultKV]::VaultToken = (Get-Credential -UserName Token -Message "Please Enter the token").Password
+                break
+            }
+            "userpass" {
+                if (-not $Credential) {
+                    $Credential = Get-Credential -Message "Please Enter UserName and Password credentials"
+                }
+                $UserName = $Credential.UserName
+                $UserLogin = "$([HashicorpVaultKV]::VaultServer)/$([HashicorpVaultKV]::VaultAPIVersion)/auth/userpass/login/$UserName"
+                $UserPassword = "{`"password`":`"$($Credential.GetNetworkCredential().Password)`"}"
+                continue
+            }
+            default {
+                throw "This shouldn't be possible please create an issue on  https://github.com/joshcorr/SecretManagement.Hashicorp.Vault.KV"
+            }
+        }
+        try {
+            if ([HashicorpVaultKV]::VaultAuthType -notin @('Token', 'RenewToken')) {
+                $auth = (Invoke-RestMethod -Method POST -Uri $UserLogin -Body $UserPassword -ErrorVariable RestError)
+                $auth_info = $auth.auth
+                [HashicorpVaultKV]::VaultToken = $auth_info.client_token | ConvertTo-SecureString -AsPlainText -Force
+            } elseif ([HashicorpVaultKV]::VaultAuthType -eq 'RenewToken') {
+                $auth = (Invoke-RestMethod -Method POST -Uri $UserLogin -Headers $headers -ErrorVariable RestError)
+                $auth_info = $auth.auth
+                [HashicorpVaultKV]::VaultToken = $auth_info.client_token | ConvertTo-SecureString -AsPlainText -Force
+            }
+
+            #Lookup/test token
+            $token_uri = "$([HashicorpVaultKV]::VaultServer)/$([HashicorpVaultKV]::VaultAPIVersion)/auth/token/lookup"
+            $token_body = @{'token' = $([System.Net.NetworkCredential]::new("", $([HashicorpVaultKV]::VaultToken)).Password) } | ConvertTo-Json
+            $Headers = New-VaultAPIHeader
+            $token_info = (Invoke-RestMethod -Method POST -Uri $token_uri -Body $token_body -Headers $headers -ErrorVariable RestError)
+
+            # Storing the information for checking before future calls.
+            [HashicorpVaultKV]::TokenRenewable = $token_info.data.renewable
+            [HashicorpVaultKV]::TokenType = $token_info.data.type
+            [HashicorpVaultKV]::TokenLifespan = $token_info.data.ttl
+            [HashicorpVaultKV]::TokenExpireTime = $token_info.data.expire_time
+        } catch {
+            if ($null -ne $RestError.message) {
+                throw "Received an error: $($RestError.message)"
+            } else {
+                throw $PSItem
+            }
+        } finally {
+            if ($RenewToken) {
+                [HashicorpVaultKV]::VaultAuthType = $AuthType
+            }
+            $auth, $auth_info, $UserName, $UserPassword, $UserLogin, $Credential, $AppRoleResult, $Password, $Login, $token_body, $token_uri, $token_info, $headers = $null
+        }
     }
 }
 function Unregister-SecretVault {
@@ -666,9 +763,9 @@ function Unregister-SecretVault {
     )
     process {
         $null = Test-SecretVault -VaultName $VaultName -AdditionalParameters $AdditionalParameters
-
         $Response = Read-Host -Prompt "Do you want to disable $VaultName on $([HashicorpVaultKV]::VaultServer) as well? (Yes/No) NOTE: This will remove all Secrets"
         if ($Response -imatch '^Y$|^yes$') {
+            Write-Verbose "Disabling $VaultName on $([HashicorpVaultKV]::VaultServer)"
             Remove-Vault -VaultName $VaultName -AdditionalParameters $AdditionalParameters
         }
     }
