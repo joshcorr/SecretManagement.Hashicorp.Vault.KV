@@ -2,6 +2,8 @@ param(
     $ModuleName = 'SecretManagement.Hashicorp.Vault.KV'
 )
 
+Write-Verbose "Build script for $ModuleName"
+
 task copy {
     $Version = (Test-ModuleManifest -Path "$PSScriptRoot\$ModuleName\$ModuleName.psd1").Version
     $UserModulePath = [Environment]::GetEnvironmentVariable('PSModulePath') -split [IO.Path]::PathSeparator | Where-Object {$PSItem -notmatch [Environment]::UserName} | Select-Object -First 1
