@@ -6,6 +6,7 @@ BeforeDiscovery {
     $ModuleName = ($PSCommandPath).Replace('.Tests.ps1', '').Split($s)[-1]
     $Path = $Folder, $ModuleName, $File -join $s
     $Extension = Get-ChildItem -Path . -Include *.psm1 -Recurse
+    $ExecutionContext.SessionState.LanguageMode = 'ConstrainedLanguage'
     Import-Module $Extension.FullName
     $commands = Get-Command -Module $Extension.BaseName
 }
