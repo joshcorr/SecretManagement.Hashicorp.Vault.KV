@@ -151,11 +151,11 @@ function Invoke-VaultToken {
     #>
     [CmdletBinding()]
     param (
-        [Parameter(ValueFromPipelineByPropertyName)]
+        [Parameter()]
         [SecureString] $Password,
-        [Parameter(ValueFromPipelineByPropertyName)]
+        [Parameter()]
         [string] $VaultName,
-        [Parameter(ValueFromPipelineByPropertyName)]
+        [Parameter()]
         [hashtable] $AdditionalParameters
     )
     Test-VaultVariable -Arguments $AdditionalParameters
@@ -226,7 +226,11 @@ function Invoke-VaultToken {
             continue
         }
         "Token" {
-            $script:VaultToken = (Get-Credential -UserName Token -Message "Please Enter the token").Password
+            if ($Password) {
+                $script:VaultToken = $Password
+            } else {
+                $script:VaultToken = (Get-Credential -UserName Token -Message "Please Enter the token").Password
+            }
             break
         }
         "userpass" {
@@ -480,6 +484,7 @@ function Get-Secret {
             $SecretName = $Name
         }
         $SecretData = Invoke-VaultAPIQuery -VaultName $VaultName -SecretName $Name @VerboseSplat
+        #jscpd:ignore-start
         switch ($script:KVVersion) {
             'v1' {
                 switch ($script:OutputType) {
@@ -529,6 +534,7 @@ function Get-Secret {
             }
             default { throw "Unknown KeyVaule version" }
         }
+        #jscpd:ignore-end
         return $SecretObject
     }
 }
@@ -730,7 +736,9 @@ function Unlock-SecretVault {
         [Parameter(ValueFromPipelineByPropertyName)]
         [hashtable] $AdditionalParameters
     )
-    Invoke-VaultToken -Password $Password -VaultName $VaultName -AdditionalParameters $AdditionalParameters
+    process {
+        Invoke-VaultToken -Password $Password -VaultName $VaultName -AdditionalParameters $AdditionalParameters
+    }
 }
 function Unregister-SecretVault {
     [CmdletBinding()]

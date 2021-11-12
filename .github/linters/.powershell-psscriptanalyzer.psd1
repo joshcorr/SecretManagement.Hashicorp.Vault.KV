@@ -11,7 +11,8 @@
     ExcludeRules        = @(
         'PSUseShouldProcessForStateChangingFunctions',
         'PSAvoidUsingConvertToSecureStringWithPlainText',
-        'PSUseDeclaredVarsMoreThanAssignments'
+        'PSUseDeclaredVarsMoreThanAssignments',
+        'PSUseLiteralInitializerForHashtable'
 
     )
     #IncludeRules = @(
