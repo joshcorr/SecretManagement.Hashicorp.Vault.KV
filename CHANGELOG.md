@@ -5,13 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [2.0.0] - 2021-11-11
+
+*Powershell 5.1 is no longer a supported version for this extension.  
+version 1.1.1-Preview is the last 5.1 compatible version*
+
+Major re-write of the token management to make it compatible with [Constrained Language Mode](https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_language_modes?view=powershell-7.1#constrained-language-constrained-language)  
+Fixes issues with  `Unlock-SecretVault` [#24](https://github.com/joshcorr/SecretManagement.Hashicorp.Vault.KV/issues/24)  
+Fixes issue using extension from Terminal [#22](https://github.com/joshcorr/SecretManagement.Hashicorp.Vault.KV/issues/22)  
+Updated documentation  
+
 ## [1.2.0] - 2021-11-07
 
-Adds `Unlock-SecretVault` [#21](https://github.com/joshcorr/SecretManagement.Hashicorp.Vault.KV/issues/21)
-Adds support for checking tokens lifespan and renewing when they are close to expiring or have already expired. [#11](https://github.com/joshcorr/SecretManagement.Hashicorp.Vault.KV/issues/11)
-Increase verbose messages and fix formatting
-Add Byte as supported data type
-Fix pester tests
+Adds `Unlock-SecretVault` [#21](https://github.com/joshcorr/SecretManagement.Hashicorp.Vault.KV/issues/21)  
+Adds support for checking tokens lifespan and renewing when they are close to expiring or have already expired. [#11](https://github.com/joshcorr/SecretManagement.Hashicorp.Vault.KV/issues/11)  
+Increase verbose messages and fix formatting  
+Add Byte as supported data type  
+Fix pester tests  s
 
 ## [1.1.1] - 2021-08-25
 
