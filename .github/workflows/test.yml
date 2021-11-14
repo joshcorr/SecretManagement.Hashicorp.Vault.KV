@@ -2,7 +2,9 @@
 name: test
 on:
   pull_request:
+    types: [opened, synchronize]
     branches:
+      - 1.x
       - main
       - development
 
