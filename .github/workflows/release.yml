@@ -57,7 +57,7 @@ jobs:
         env:
           NUGET_KEY: ${{ secrets.NUGET_APIKEY }}
         run: |
-          Publish-Module -Path /tmp/artifacts/SecretManagement.Hashicorp.Vault.KV -NuGetApiKey $env:NUGET_KEY
+          Publish-Module -Path /tmp/artifacts/SecretManagement.Hashicorp.Vault.KV -NuGetApiKey $env:NUGET_KEY -Force
       # Need to figure out tagging in pipeline first
       # - name: "Release"
       #   uses: ncipollo/release-action@v1
