@@ -5,9 +5,11 @@ on:
     types: [closed]
     branches:
       - main
+      - 1.x
   push:
     branches:
       - main
+      - 1.x
 
 jobs:
   publish:
