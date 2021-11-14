@@ -48,6 +48,39 @@ function ConvertTo-ReadOnlyDictionary {
         [ReadOnlyDictionary[string, object]]::new($dictionary)
     }
 }
+function Invoke-CustomWebRequest {
+    <#
+    .SYNOPSIS
+        Custom Web Request function to support non standard methods
+    #>
+    [Cmdletbinding()]
+    param (
+        [Parameter(Mandatory)]
+        [string]$Uri,
+        [Parameter(Mandatory)]
+        [object]$Headers,
+        [Parameter(Mandatory)]
+        [string]$Method
+    )
+    Add-Type -AssemblyName System.Net.Http
+    $Client = New-Object -TypeName System.Net.Http.HttpClient
+    $Client.DefaultRequestHeaders.Accept.Add($headers['Accept'])
+    $Request = New-Object -TypeName System.Net.Http.HttpRequestMessage
+    $Request.Method = $method
+    $Request.Headers.Add('X-Vault-Token', $headers['X-Vault-Token'])
+    $Request.Headers.Add('ContentType', $headers['Content-type'])
+    $Request.RequestUri = $Uri
+
+    $Result = $Client.SendAsync($Request)
+    $StatusCode = $Result.Result.StatusCode
+    if ($StatusCode -eq "OK") {
+        $Result.Result.Content.ReadAsStringAsync().Result | ConvertFrom-Json
+    } else {
+        Throw "$statuscode for $method on $uri"
+    }
+    $Client.Dispose()
+    $Request.Dispose()
+}
 function Invoke-VaultAPIQuery {
     <#
     .SYNOPSIS
@@ -126,9 +159,13 @@ function Invoke-VaultAPIQuery {
         if ($null -ne $body) { $VaultSplat['Body'] = $body }
 
         if ($method -eq 'List') {
-            $VaultSplat.Remove('Method')
-            $VaultSplat['CustomMethod'] = 'LIST'
-            Invoke-RestMethod @VaultSplat -ErrorVariable RestError
+            if($iscoreCRL) {
+                $VaultSplat.Remove('Method')
+                $VaultSplat['CustomMethod'] = 'LIST'
+                Invoke-RestMethod @VaultSplat -ErrorVariable RestError
+            } else {
+                Invoke-CustomWebRequest @VaultSplat -ErrorVariable RestError
+            }
         } elseif ($CallingVerb -eq 'Test') {
             foreach ($u in $uri) {
                 $VaultSplat['URI'] = $u
