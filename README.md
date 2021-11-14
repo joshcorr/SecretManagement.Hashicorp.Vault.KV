@@ -4,7 +4,12 @@
 [![PSGallery][]][PSGalleryLink]
 [![SupportBadge][]][SupportBadge]
 
-A PowerShell SecretManagement extension for Hashicorp Vault Key Value (KV) Engine. This supports version 1, version2, and  cubbyhole (similar to v1). It does not currently support all of the version 2 features like versioned secrets. This extension only supports PowerShell 6+
+A PowerShell SecretManagement extension for Hashicorp Vault Key Value (KV) Engine. This supports version 1, version2, and  cubbyhole (similar to v1). It does not currently support all of the version 2 features like versioned secrets.
+
+| Extension Version | 6.0+ | 5.1 | Constrained Language Mode |
+| ----------------- | ---- | --- | ------------------------- |
+| 1.x.x             | Yes  | Yes | No                        |
+| 2.x.x             | Yes  | No  | Yes                       |
 
 > **NOTE: This project is not maintained by Hashicorp.**  
 > **I work on this in my free time because I use Vault.**  
@@ -51,4 +56,4 @@ You may provide either a single text string or a hashtable to the `-Secret` para
 
 [PSGallery]: https://img.shields.io/powershellgallery/v/SecretManagement.Hashicorp.Vault.KV?include_prereleases
 [PSGalleryLink]: https://www.powershellgallery.com/packages/SecretManagement.Hashicorp.Vault.KV
-[SupportBadge]: https://img.shields.io/powershellgallery/p/SecretManagement.Hashicorp.Vault.KV?label=6.0%2B&logo=powershell
+[SupportBadge]: https://img.shields.io/powershellgallery/p/SecretManagement.Hashicorp.Vault.KV?label=5.1%2B&logo=powershell
