@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [1.3.0] - 2021-11-14
+
+Reintroduced PowerShell 5.1 support [#26](https://github.com/joshcorr/SecretManagement.Hashicorp.Vault.KV/issues/26)  
+Backported changes from main branch
+
 ## [2.0.0] - 2021-11-11
 
 *Powershell 5.1 is no longer a supported version for this extension.  
@@ -21,7 +26,7 @@ Adds `Unlock-SecretVault` [#21](https://github.com/joshcorr/SecretManagement.Has
 Adds support for checking tokens lifespan and renewing when they are close to expiring or have already expired. [#11](https://github.com/joshcorr/SecretManagement.Hashicorp.Vault.KV/issues/11)  
 Increase verbose messages and fix formatting  
 Add Byte as supported data type  
-Fix pester tests  s
+Fix pester tests
 
 ## [1.1.1] - 2021-08-25
 
