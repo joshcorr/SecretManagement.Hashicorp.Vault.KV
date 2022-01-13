@@ -23,6 +23,12 @@ When registering a vault you need to provide at least these options:
 Register-SecretVault -ModuleName SecretManagement.Hashicorp.Vault.KV -Name PowerShellTest -VaultParameters @{ VaultServer = 'http://vault.domain.local:8200'; VaultAuthType = 'Token'}
 ```
 
+To disable HTTPS certificate checks (e.g. self-signed certs) use the `VaultSkipVerify` parameter
+
+```PowerShell
+Register-SecretVault -ModuleName SecretManagement.Hashicorp.Vault.KV -Name PowerShellTest -VaultParameters @{ VaultServer = 'https://vault.domain.local:8200'; VaultAuthType = 'Token'; VaultSkipVerify = $true}
+```
+
 The vault name should match exactly, as Hashicorp vault is case sensitive. If no VaultParameters are provided the functions will prompt you on the first execution in your session. Additionally you may provide which version of KV you are using when registering. It defaults to version 2 of KV.  
 
 ```PowerShell
