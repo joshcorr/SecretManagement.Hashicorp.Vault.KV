@@ -2,8 +2,8 @@
 using namespace System.Collections.ObjectModel
 using namespace System.Collections.Generic
 # enum and Variables setup for use
-$script:HashicorpVaultConfigValues = @('VaultServer', 'VaultAuthType', 'VaultToken', 'VaultAPIVersion', 'KVVersion', 'OutputType', 'Verbose')
-$script:AllVariables = @('VaultServer', 'VaultAuthType', 'VaultToken', 'VaultAPIVersion', 'KVVersion', 'OutputType', 'TokenRenewable', 'TokenLifespan', 'TokenType', 'TokenExpireTime', 'Verbose')
+$script:HashicorpVaultConfigValues = @('VaultServer', 'VaultAuthType', 'VaultToken', 'VaultAPIVersion', 'VaultSkipVerify', 'KVVersion', 'OutputType', 'Verbose')
+$script:AllVariables = @('VaultServer', 'VaultAuthType', 'VaultToken', 'VaultAPIVersion', 'VaultSkipVerify', 'KVVersion', 'OutputType', 'TokenRenewable', 'TokenLifespan', 'TokenType', 'TokenExpireTime', 'Verbose')
 
 enum HashicorpVaultAuthTypes {
     None
@@ -21,6 +21,7 @@ $script:HashicorpAuthTypes = @('None', 'AppRole', 'LDAP', 'userpass', 'Token')
 [string]$script:VaultAPIVersion = 'v1'
 [string]$script:KVVersion = 'v2'
 [string]$script:OutputType = 'Hashtable'
+[bool]$script:VaultSkipVerify = $false
 # Internally used
 [bool]$script:TokenRenewable
 [double]$script:TokenLifespan
@@ -119,9 +120,10 @@ function Invoke-VaultAPIQuery {
         }
 
         $VaultSplat = @{
-            URI     = $uri
-            Method  = $Method
-            Headers = New-VaultAPIHeader
+            URI                  = $uri
+            Method               = $Method
+            Headers              = New-VaultAPIHeader
+            SkipCertificateCheck = $script:VaultSkipVerify
         }
         if ($null -ne $body) { $VaultSplat['Body'] = $body }
 
@@ -248,11 +250,11 @@ function Invoke-VaultToken {
     }
     try {
         if ($script:VaultAuthType -notin @('Token', 'RenewToken')) {
-            $auth = (Invoke-RestMethod -Method POST -Uri $UserLogin -Body $UserPassword -ErrorVariable RestError)
+            $auth = (Invoke-RestMethod -Method POST -Uri $UserLogin -Body $UserPassword -ErrorVariable RestError -SkipCertificateCheck:$script:VaultSkipVerify)
             $auth_info = $auth.auth
             $script:VaultToken = $auth_info.client_token | ConvertTo-SecureString -AsPlainText -Force
         } elseif ($script:VaultAuthType -eq 'RenewToken') {
-            $auth = (Invoke-RestMethod -Method POST -Uri $UserLogin -Headers $headers -ErrorVariable RestError)
+            $auth = (Invoke-RestMethod -Method POST -Uri $UserLogin -Headers $headers -ErrorVariable RestError -SkipCertificateCheck:$script:VaultSkipVerify)
             $auth_info = $auth.auth
             $script:VaultToken = $auth_info.client_token | ConvertTo-SecureString -AsPlainText -Force
         }
@@ -261,7 +263,7 @@ function Invoke-VaultToken {
         $token_uri = "$($script:VaultServer)/$($script:VaultAPIVersion)/auth/token/lookup"
         $token_body = @{'token' = $([PSCredential]::new("token", $($script:VaultToken)).GetNetworkCredential().Password) } | ConvertTo-Json
         $Headers = New-VaultAPIHeader
-        $token_info = (Invoke-RestMethod -Method POST -Uri $token_uri -Body $token_body -Headers $headers -ErrorVariable RestError)
+        $token_info = (Invoke-RestMethod -Method POST -Uri $token_uri -Body $token_body -Headers $headers -ErrorVariable RestError -SkipCertificateCheck:$script:VaultSkipVerify)
 
         # Storing the information for checking before future calls.
         $script:TokenRenewable = $token_info.data.renewable
@@ -303,9 +305,10 @@ function New-Vault {
                 $version = '2'
             }
             $VaultSplat = @{
-                URI     = $serverURI
-                Method  = 'POST'
-                Headers = New-VaultAPIHeader
+                URI                  = $serverURI
+                Method               = 'POST'
+                Headers              = New-VaultAPIHeader
+                SkipCertificateCheck = $script:VaultSkipVerify
             }
             $VaultOptions = @{
                 type        = 'kv'
@@ -398,9 +401,10 @@ function Remove-Vault {
             $serverURI = $($script:VaultServer), $($script:VaultAPIVersion), 'sys/mounts', $VaultName -join '/'
             Write-Verbose "Removing $VaultName. $AdditionalParameters['Description']"
             $VaultSplat = @{
-                URI     = $serverURI
-                Method  = 'DELETE'
-                Headers = New-VaultAPIHeader
+                URI                  = $serverURI
+                Method               = 'DELETE'
+                Headers              = New-VaultAPIHeader
+                SkipCertificateCheck = $script:VaultSkipVerify
             }
 
             Invoke-RestMethod @VaultSplat
@@ -476,7 +480,7 @@ function Get-Secret {
         [hashtable] $AdditionalParameters
     )
     process {
-        $VerboseSplat = @{Verbose = $AdditionalParameters['Verbose']}
+        $VerboseSplat = @{Verbose = $AdditionalParameters['Verbose'] }
         $null = Test-SecretVault -VaultName $VaultName -AdditionalParameters $AdditionalParameters
         if ($Name -match '/') {
             $SecretName = $($Name -split '/')[-1]
@@ -549,13 +553,13 @@ function Get-SecretInfo {
         [hashtable] $AdditionalParameters
     )
     process {
-        $VerboseSplat = @{Verbose = $AdditionalParameters['Verbose']}
+        $VerboseSplat = @{Verbose = $AdditionalParameters['Verbose'] }
         $null = Test-SecretVault -VaultName $VaultName -AdditionalParameters $AdditionalParameters
         $Filter = "*$Filter"
         $VaultSecrets = Resolve-VaultSecretPath -VaultName $VaultName @VerboseSplat
         $VaultSecrets |
-            Where-Object { $PSItem -like $Filter } |
-            ForEach-Object {
+        Where-Object { $PSItem -like $Filter } |
+        ForEach-Object {
             if ($script:KVVersion -eq 'v1') {
                 $Metadata = $null
             } else {
@@ -583,7 +587,7 @@ function Remove-Secret {
         [hashtable] $AdditionalParameters
     )
     process {
-        $VerboseSplat = @{Verbose = $AdditionalParameters['Verbose']}
+        $VerboseSplat = @{Verbose = $AdditionalParameters['Verbose'] }
         $null = Test-SecretVault -VaultName $VaultName -AdditionalParameters $AdditionalParameters
         $SecretData = Invoke-VaultAPIQuery -VaultName $VaultName -SecretName $Name @VerboseSplat
 
@@ -609,7 +613,7 @@ function Set-Secret {
         [hashtable] $Metadata
     )
     process {
-        $VerboseSplat = @{Verbose = $AdditionalParameters['Verbose']}
+        $VerboseSplat = @{Verbose = $AdditionalParameters['Verbose'] }
         $null = Test-SecretVault -VaultName $VaultName -AdditionalParameters $AdditionalParameters
         $type = $Secret.GetType()
         switch ($Secret.GetType()) {
