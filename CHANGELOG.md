@@ -1,9 +1,15 @@
-# Change Log
+# Changelog
 
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
+
+## [2.0.1] - 2022-01-13
+
+Support skipping certificate varification [#29](https://github.com/joshcorr/SecretManagement.Hashicorp.Vault.KV/issues/29) thanks to [@ryancbutler](https://github.com/ryancbutler)  
+bugfix for DateTime conversion when useing root token [#31](https://github.com/joshcorr/SecretManagement.Hashicorp.Vault.KV/issues/31)  
+bugfix Linter  
 
 ## [1.3.0] - 2021-11-14
 
@@ -15,7 +21,7 @@ Backported changes from main branch
 *Powershell 5.1 is no longer a supported version for this extension.  
 version 1.1.1-Preview is the last 5.1 compatible version*
 
-Major re-write of the token management to make it compatible with [Constrained Language Mode](https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_language_modes?view=powershell-7.1#constrained-language-constrained-language)  
+Major rewrite of the token management to make it compatible with [Constrained Language Mode](https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_language_modes?view=powershell-7.1#constrained-language-constrained-language)  
 Fixes issues with  `Unlock-SecretVault` [#24](https://github.com/joshcorr/SecretManagement.Hashicorp.Vault.KV/issues/24)  
 Fixes issue using extension from Terminal [#22](https://github.com/joshcorr/SecretManagement.Hashicorp.Vault.KV/issues/22)  
 Updated documentation  
@@ -52,7 +58,7 @@ Update About; remove Preview Tag
 
 ## [0.0.11] - 2021-03-16
 
-More Bug fixes
+More bugfixes
 
 ## [0.0.10] - 2021-03-16
 
@@ -80,11 +86,11 @@ Version Bump
 
 ## [0.0.4] - 2021-03-08
 
-More Github Actions changes
+More GitHub Actions changes
 
 ## [0.0.3] - 2021-03-08
 
-Github Actions changes
+GitHub Actions changes
 
 ## [0.0.2] - 2021-03-08
 

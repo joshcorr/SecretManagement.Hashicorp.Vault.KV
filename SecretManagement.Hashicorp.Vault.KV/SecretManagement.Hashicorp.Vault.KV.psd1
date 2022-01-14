@@ -1,5 +1,5 @@
 @{
-    ModuleVersion        = '2.0.0'
+    ModuleVersion        = '2.0.1'
     CompatiblePSEditions = @('Core')
     GUID                 = '5dbf943d-d9c0-4db5-88a2-1995043a6305'
     Author               = 'Josh Corrick'
@@ -15,7 +15,7 @@
 
         PSData = @{
             # Prerelease string of this module
-            # Prerelease                 = 'Preview'
+            Prerelease                 = 'Preview'
             Tags                       = 'SecretManagement', 'HashiCorp', 'Secret', 'Vault', 'MacOS', 'Linux', 'Windows'
             ExternalModuleDependencies = @('Microsoft.PowerShell.SecretManagement')
             LicenseUri                 = 'https://raw.githubusercontent.com/joshcorr/SecretManagement.Hashicorp.Vault.KV/main/LICENSE'
