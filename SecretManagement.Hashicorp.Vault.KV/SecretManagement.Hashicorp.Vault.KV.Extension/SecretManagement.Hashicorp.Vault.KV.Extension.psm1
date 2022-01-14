@@ -23,6 +23,7 @@ $script:HashicorpAuthTypes = @('None', 'AppRole', 'LDAP', 'userpass', 'Token')
 [string]$script:OutputType = 'Hashtable'
 [bool]$script:VaultSkipVerify = $false
 # Internally used
+[bool]$script:RootToken = $false
 [bool]$script:TokenRenewable
 [double]$script:TokenLifespan
 [string]$script:TokenType
@@ -171,7 +172,7 @@ function Invoke-VaultToken {
         Write-Verbose "Retrieving a Token for authenticating to Vault"
         $RenewToken = $false
         #continue
-    } elseif ($Null -ne $script:VaultToken -and $script:TokenExpireTime -lt (Get-date)) {
+    } elseif ($Null -ne $script:VaultToken -and $script:TokenExpireTime -lt (Get-date) -and -not $script:RootToken) {
         # Retrieve a new token if expired
         Write-Verbose "Token Expired at $($script:TokenExpireTime). Retieving a new token"
         $script:VaultToken = $null
@@ -266,10 +267,15 @@ function Invoke-VaultToken {
         $token_info = (Invoke-RestMethod -Method POST -Uri $token_uri -Body $token_body -Headers $headers -ErrorVariable RestError -SkipCertificateCheck:$script:VaultSkipVerify)
 
         # Storing the information for checking before future calls.
+        if ($token_info.data.policies -contains 'root') {
+            $script:RootToken = $true
+        }
         $script:TokenRenewable = $token_info.data.renewable
         $script:TokenType = $token_info.data.type
         $script:TokenLifespan = $token_info.data.ttl
-        $script:TokenExpireTime = $token_info.data.expire_time
+        if (-not $script:RootToken) {
+            $script:TokenExpireTime = $token_info.data.expire_time
+        }
     } catch {
         if ($null -ne $RestError.message) {
             throw "Received an error: $($RestError.message)"
@@ -558,8 +564,8 @@ function Get-SecretInfo {
         $Filter = "*$Filter"
         $VaultSecrets = Resolve-VaultSecretPath -VaultName $VaultName @VerboseSplat
         $VaultSecrets |
-        Where-Object { $PSItem -like $Filter } |
-        ForEach-Object {
+            Where-Object { $PSItem -like $Filter } |
+            ForEach-Object {
             if ($script:KVVersion -eq 'v1') {
                 $Metadata = $null
             } else {

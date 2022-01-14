@@ -27,7 +27,7 @@ If this is your first time contributing to an opensource project, welcome! Here 
 
 - Look for items marked as "good first issue" (these usually only require a few easy changes)
 - Comment on this issue to let us know you want to work on it
-- Fork the module into your own repo
+- Fork the module into your own repository
 - Create a feature branch off of the development branch
     Call it something like `fix-bad-example-issue43`
 - If you get stuck reach out for help
