@@ -155,6 +155,8 @@ function Invoke-VaultToken {
     [CmdletBinding()]
     param (
         [Parameter()]
+        [string] $Login,
+        [Parameter()]
         [SecureString] $Password,
         [Parameter()]
         [string] $VaultName,
@@ -172,13 +174,13 @@ function Invoke-VaultToken {
         Write-Verbose "Retrieving a Token for authenticating to Vault"
         $RenewToken = $false
         #continue
-    } elseif ($Null -ne $script:VaultToken -and $script:TokenExpireTime -lt (Get-date) -and -not $script:RootToken) {
+    } elseif ($Null -ne $script:VaultToken -and $script:TokenExpireTime -lt (Get-Date) -and -not $script:RootToken) {
         # Retrieve a new token if expired
         Write-Verbose "Token Expired at $($script:TokenExpireTime). Retieving a new token"
         $script:VaultToken = $null
         $RenewToken = $false
         #continue
-    } elseif ($Null -ne $script:VaultToken -and (New-TimeSpan -Start (Get-date) -End ($script:TokenExpireTime)).Minutes -le 1 -and $script:TokenRenewable) {
+    } elseif ($Null -ne $script:VaultToken -and (New-TimeSpan -Start (Get-Date) -End ($script:TokenExpireTime)).Minutes -le 1 -and $script:TokenRenewable) {
         # Renew a new token if about to expire
         Write-Verbose "Token about to Expire at $($script:TokenExpireTime). Renewing the token for $($script:TokenLifespan) seconds."
         $RenewToken = $true
@@ -196,7 +198,9 @@ function Invoke-VaultToken {
     $AuthType = $script:VaultAuthType
 
     if ($Password -and $AuthType -ne 'Token' -and -not $RenewToken) {
-        $Login = Read-Host -Prompt "What is the $(if($AuthType -eq 'Approle'){'Role-Id'} else {'Username'})?"
+        if ($Null -eq $Login) {
+            $Login = Read-Host -Prompt "What is the $(if($AuthType -eq 'Approle'){'Role-Id'} else {'Username'})?"
+        }
         $Credential = [System.Management.Automation.PSCredential]::new($Login, $Password)
     }
     switch ($script:VaultAuthType) {
@@ -564,8 +568,8 @@ function Get-SecretInfo {
         $Filter = "*$Filter"
         $VaultSecrets = Resolve-VaultSecretPath -VaultName $VaultName @VerboseSplat
         $VaultSecrets |
-            Where-Object { $PSItem -like $Filter } |
-            ForEach-Object {
+        Where-Object { $PSItem -like $Filter } |
+        ForEach-Object {
             if ($script:KVVersion -eq 'v1') {
                 $Metadata = $null
             } else {
@@ -738,6 +742,8 @@ function Unlock-SecretVault {
     [CmdletBinding()]
     param (
         [Parameter(ValueFromPipelineByPropertyName)]
+        [string] $Login,
+        [Parameter(ValueFromPipelineByPropertyName)]
         [SecureString] $Password,
         [Parameter(ValueFromPipelineByPropertyName)]
         [Alias('Name')]
@@ -747,7 +753,7 @@ function Unlock-SecretVault {
         [hashtable] $AdditionalParameters
     )
     process {
-        Invoke-VaultToken -Password $Password -VaultName $VaultName -AdditionalParameters $AdditionalParameters
+        Invoke-VaultToken -Login $Login -Password $Password -VaultName $VaultName -AdditionalParameters $AdditionalParameters
     }
 }
 function Unregister-SecretVault {
