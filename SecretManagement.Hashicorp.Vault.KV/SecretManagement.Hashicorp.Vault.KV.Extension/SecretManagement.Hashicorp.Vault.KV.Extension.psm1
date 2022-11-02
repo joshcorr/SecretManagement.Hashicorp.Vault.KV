@@ -2,8 +2,8 @@
 using namespace System.Collections.ObjectModel
 using namespace System.Collections.Generic
 # enum and Variables setup for use
-$script:HashicorpVaultConfigValues = @('VaultServer', 'VaultAuthType', 'VaultToken', 'VaultAPIVersion', 'VaultSkipVerify', 'KVVersion', 'OutputType', 'Verbose')
-$script:AllVariables = @('VaultServer', 'VaultAuthType', 'VaultToken', 'VaultAPIVersion', 'VaultSkipVerify', 'KVVersion', 'OutputType', 'TokenRenewable', 'TokenLifespan', 'TokenType', 'TokenExpireTime', 'Verbose')
+$script:HashicorpVaultConfigValues = @('VaultServer', 'VaultAuthType', 'VaultToken', 'VaultAPIVersion', 'VaultSkipVerify', 'KVVersion', 'Login', 'OutputType', 'Verbose')
+$script:AllVariables = @('VaultServer', 'VaultAuthType', 'VaultToken', 'VaultAPIVersion', 'VaultSkipVerify', 'KVVersion', 'Login', 'OutputType', 'TokenRenewable', 'TokenLifespan', 'TokenType', 'TokenExpireTime', 'Verbose')
 
 enum HashicorpVaultAuthTypes {
     None
@@ -172,13 +172,13 @@ function Invoke-VaultToken {
         Write-Verbose "Retrieving a Token for authenticating to Vault"
         $RenewToken = $false
         #continue
-    } elseif ($Null -ne $script:VaultToken -and $script:TokenExpireTime -lt (Get-date) -and -not $script:RootToken) {
+    } elseif ($Null -ne $script:VaultToken -and $script:TokenExpireTime -lt (Get-Date) -and -not $script:RootToken) {
         # Retrieve a new token if expired
         Write-Verbose "Token Expired at $($script:TokenExpireTime). Retieving a new token"
         $script:VaultToken = $null
         $RenewToken = $false
         #continue
-    } elseif ($Null -ne $script:VaultToken -and (New-TimeSpan -Start (Get-date) -End ($script:TokenExpireTime)).Minutes -le 1 -and $script:TokenRenewable) {
+    } elseif ($Null -ne $script:VaultToken -and (New-TimeSpan -Start (Get-Date) -End ($script:TokenExpireTime)).Minutes -le 1 -and $script:TokenRenewable) {
         # Renew a new token if about to expire
         Write-Verbose "Token about to Expire at $($script:TokenExpireTime). Renewing the token for $($script:TokenLifespan) seconds."
         $RenewToken = $true
@@ -196,7 +196,11 @@ function Invoke-VaultToken {
     $AuthType = $script:VaultAuthType
 
     if ($Password -and $AuthType -ne 'Token' -and -not $RenewToken) {
-        $Login = Read-Host -Prompt "What is the $(if($AuthType -eq 'Approle'){'Role-Id'} else {'Username'})?"
+        if (-not $AdditionalParameters['Login']) {
+            $Login = Read-Host -Prompt "What is the $(if($AuthType -eq 'Approle'){'Role-Id'} else {'Username'})?"
+        } else {
+            $Login = $AdditionalParameters['Login']
+        }
         $Credential = [System.Management.Automation.PSCredential]::new($Login, $Password)
     }
     switch ($script:VaultAuthType) {
@@ -564,8 +568,8 @@ function Get-SecretInfo {
         $Filter = "*$Filter"
         $VaultSecrets = Resolve-VaultSecretPath -VaultName $VaultName @VerboseSplat
         $VaultSecrets |
-            Where-Object { $PSItem -like $Filter } |
-            ForEach-Object {
+        Where-Object { $PSItem -like $Filter } |
+        ForEach-Object {
             if ($script:KVVersion -eq 'v1') {
                 $Metadata = $null
             } else {
