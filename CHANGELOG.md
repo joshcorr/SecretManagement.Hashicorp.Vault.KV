@@ -5,7 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
-## [2.0.1] - 2022-01-13
+## [Archived] - 2026-07-14
+
+This repository has been archived. `Microsoft.PowerShell.SecretManagement` has been declared feature complete (1.1.2 is the last feature release) and is no longer actively developed. As a result, this extension vault is also retired. No further releases will be published.
+
+
 
 Support skipping certificate varification [#29](https://github.com/joshcorr/SecretManagement.Hashicorp.Vault.KV/issues/29) thanks to [@ryancbutler](https://github.com/ryancbutler)  
 bugfix for DateTime conversion when useing root token [#31](https://github.com/joshcorr/SecretManagement.Hashicorp.Vault.KV/issues/31)  

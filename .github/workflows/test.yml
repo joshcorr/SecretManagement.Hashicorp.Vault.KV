@@ -1,12 +1,12 @@
 ---
+# This workflow has been disabled. The repository is archived.
 name: test
 on:
-  pull_request:
-    types: [opened, synchronize]
-    branches:
-      - 1.x
-      - main
-      - development
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Repository is archived. This workflow is disabled.'
+        required: false
 
 jobs:
   lint:

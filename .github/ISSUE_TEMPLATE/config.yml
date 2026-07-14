@@ -1,1 +1,5 @@
 blank_issues_enabled: false
+contact_links:
+  - name: Repository Archived
+    url: https://github.com/joshcorr/SecretManagement.Hashicorp.Vault.KV
+    about: This repository is archived and no longer accepting new issues. Please see the README for more information.
