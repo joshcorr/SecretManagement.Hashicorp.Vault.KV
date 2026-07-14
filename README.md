@@ -1,8 +1,16 @@
 # SecretManagement.Hashicorp.Vault.KV
 
-[![GitHubSuper-Linter][]][GitHubSuper-LinterLink]
+> [!IMPORTANT]
+> This repository is **archived** and no longer maintained.
+>
+> The upstream dependency [`Microsoft.PowerShell.SecretManagement`](https://github.com/PowerShell/SecretManagement) has been declared feature complete and is no longer actively developed.
+> As a result, this extension vault is also being retired.
+>
+> The last published version on the [PowerShell Gallery](https://www.powershellgallery.com/packages/SecretManagement.Hashicorp.Vault.KV) remains available for use, but no further updates, bug fixes, or security patches will be provided.
+>
+> For secrets management, consider alternatives such as the [Hashicorp Vault provider for OpenTofu/Terraform](https://registry.terraform.io/providers/hashicorp/vault/latest/docs), the [Vault Agent](https://developer.hashicorp.com/vault/docs/agent-and-proxy/agent), or other passwordless authentication methods.
+
 [![PSGallery][]][PSGalleryLink]
-[![SupportBadge][]][SupportBadge]
 
 A PowerShell SecretManagement extension for Hashicorp Vault key- value (KV) Engine. This supports version 1, version2, and  cubbyhole (similar to v1). It does not currently support all of the version 2 features like versioned secrets.
 
@@ -57,9 +65,5 @@ You may provide either a single text string or a hashtable to the `-Secret` para
 - Set-Secret Adds/Updates without CheckAndSet. Althought it can be passed with `-Metadata @{cas=<versionNumber>}`
 - Remove-Secret Removes the latest version of a secret
 
-[GitHubSuper-Linter]: https://github.com/joshcorr/SecretManagement.Hashicorp.Vault.KV/workflows/ci/badge.svg
-[GitHubSuper-LinterLink]: https://github.com/marketplace/actions/super-linter
-
 [PSGallery]: https://img.shields.io/powershellgallery/v/SecretManagement.Hashicorp.Vault.KV?include_prereleases
 [PSGalleryLink]: https://www.powershellgallery.com/packages/SecretManagement.Hashicorp.Vault.KV
-[SupportBadge]: https://img.shields.io/powershellgallery/p/SecretManagement.Hashicorp.Vault.KV?label=6.0%2B&logo=powershell
