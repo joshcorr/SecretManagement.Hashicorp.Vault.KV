@@ -3,8 +3,11 @@
 > [!IMPORTANT]
 > This repository is **archived** and no longer maintained.
 >
-> The upstream dependency [`Microsoft.PowerShell.SecretManagement`](https://github.com/PowerShell/SecretManagement) has been declared feature complete and is no longer actively developed.
+> The upstream dependency [`Microsoft.PowerShell.SecretManagement`](https://github.com/PowerShell/SecretManagement) has been declared feature complete — [1.1.2](https://www.powershellgallery.com/packages/Microsoft.PowerShell.SecretManagement/1.1.2) is its last feature release.
 > As a result, this extension vault is also being retired.
+>
+> The nature of secrets has fundamentally changed since this project was designed.
+> Passwordless authentication methods such as passkeys, single sign-on, and federated credential systems such as Microsoft Entra ID, biometrics, and hardware security keys are the future — and they aren't something this project can meaningfully support in its current form.
 >
 > The last published version on the [PowerShell Gallery](https://www.powershellgallery.com/packages/SecretManagement.Hashicorp.Vault.KV) remains available for use, but no further updates, bug fixes, or security patches will be provided.
 >
